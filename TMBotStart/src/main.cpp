@@ -24,8 +24,8 @@ int main()
     else
     {
         cout << "Requirement Found!" << endl;
-        cout << "Starting TMBot..." << endl;
-        system("node app.js");
+        cout << "Starting Luminide Bot..." << endl;
+        system("node App.js");
     }
 
     return 0;

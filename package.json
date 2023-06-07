@@ -1,15 +1,15 @@
 {
-  "name": "TMBot",
-  "version":"1.0.2",
-  "description": "TM机器人框架(OneBot标准)",
-  "main": "./app.js",
+  "name": "luminide",
+  "version": "1.0.2r",
+  "description": "Luminide",
+  "main": "./App.js",
   "scripts": {
-    "start": "node app.js"
+    "start": "node App.js"
   },
   "dependencies": {
     "@types/deasync": "^0.1.2",
     "@types/needle": "^2.5.3",
-    "@types/node": "^18.11.9",
+    "@types/node": "^20.2.5",
     "@types/ws": "^8.5.3",
     "deasync": "^0.1.28",
     "ws": "^8.11.0"

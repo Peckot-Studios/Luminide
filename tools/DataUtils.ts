@@ -1,4 +1,4 @@
-import { FileClass } from "./file";
+import { FileClass } from "./FileUtils";
 
 
 

@@ -1,7 +1,8 @@
 import * as process from "process";
 import * as fs from "fs";
 import * as path from "path";
-import { FileClass } from "./FileUtils";
+import { FileClass } from "../../utils/FileUtils";
+import { Version } from "../../App";
 // import { ServerPlayer } from "bdsx/bds/player";
 // import { bedrockServer } from "bdsx/launcher";
 // import { TextPacket } from "bdsx/bds/packets";
@@ -246,4 +247,20 @@ export class Logger {
         this.#LogOp(LoggerLevel.Fatal, args.join(""));
         return true;
     };
+    errorPrint(name: string, msg: string, data: string) {
+        let date = new Date();
+        let fileName = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()} ${date.getHours()}-${date.getMinutes()}-${date.getSeconds()}-${date.getMilliseconds()}`;
+        let dir = FileClass.getStandardPath(`./logs/Error/${fileName}.md`)!;
+        let txt = [
+            `# Luminide 错误日志:`,
+            `### 错误时间: ${fileName}`,
+            `### Version: ${Version.version.join(".")}-remake ${Version.isBeta ? "Beta" : ""}`,
+            `## 错误名称:`, name,
+            `## 错误信息:`, msg,
+            `## 错误数据:`, data
+        ].join("\n");
+        FileClass.writeTo(dir, txt);
+        this.warn(`错误信息已输出至: ${dir}`);
+        return dir;
+    }
 }

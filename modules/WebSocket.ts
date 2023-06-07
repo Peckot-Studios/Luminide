@@ -2,7 +2,7 @@
 // import deasync from "deasync";
 // import * as websocket_ts from "websocket-ts";
 import { WebSocket } from "ws";
-import { Logger } from "../tools/logger";
+import { Logger } from "../tools/Logger";
 import { Event } from "./Event";
 
 let logger = new Logger("WebsocketClient", 4);

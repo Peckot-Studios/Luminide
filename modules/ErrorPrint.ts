@@ -1,6 +1,6 @@
-import { Version } from "../app";
-import { FileClass } from "../tools/file";
-import { Logger } from "../tools/logger";
+import { Version } from "../src/main/App";
+import { FileClass } from "../tools/FileUtils";
+import { Logger } from "../tools/Logger";
 
 
 

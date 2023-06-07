@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
-import { Version } from "../app";
-import { Logger } from "./logger";
+import { Version } from "../App";
+import { Logger } from "../entities/system/Logger";
 
 
 let standardPath = (() => {

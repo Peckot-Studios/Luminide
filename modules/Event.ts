@@ -1,5 +1,5 @@
 import { isPromise } from "util/types";
-import { Logger } from "../tools/logger";
+import { Logger } from "../tools/Logger";
 
 export class Event<FUNCTION_T extends (...args: any[]) => any | Promise<any>>{
     private num = 0;

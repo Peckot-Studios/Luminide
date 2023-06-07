@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "fs";
 import path from "path";
-import { FileClass } from "../tools/file";
-import { Logger } from "../tools/logger";
+import { FileClass } from "../tools/FileUtils";
+import { Logger } from "../tools/Logger";
 import * as child_process from 'child_process';
 
 const PLUGIN_DIR = "./plugins/";

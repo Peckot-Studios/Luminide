@@ -1,36 +1,33 @@
-import { BotDockingMgr } from "./modules/BotDockingMgr";
-import { ErrorPrint } from "./modules/ErrorPrint";
-import { PluginPackage } from "./modules/PluginLoader";
-import { JsonConfigFileClass } from "./tools/data";
-import { Logger } from "./tools/logger";
+import { BotManager } from "./hooks/BotManager";
+import { JsonConfigFileClass } from "../../tools/DataUtils";
+import { Logger } from "./entities/system/Logger";
+import { PluginLoader } from "./plugins/PluginLoader";
 
 let Logo = String.raw`
-  ________  _______        __ 
- /_  __/  |/  / __ )____  / /_
-  / / / /|_/ / __  / __ \/ __/
- / / / /  / / /_/ / /_/ / /_  
-/_/ /_/  /_/_____/\____/\__/  
-                              
+   __                _        _     __
+  / /  __ __ __ _   (_)___   (_)___/ /___
+ / /__/ // //  ' \ / // _ \ / // _  // -_)
+/____/\_,_//_/_/_//_//_//_//_/ \_,_/ \__/
+
 `;
 
-let logger = new Logger("TMBotMain");
+let logger = new Logger("Lumin");
 
 export let Version = {
-
-    "version": [1, 0, 7],
-
+    "version": [1, 0, 2],
+    "isRemake": true,
     "isBeta": false,
     "isDebug": false
 };
 
-let TMBotConfig = new JsonConfigFileClass("./config/config.json", JSON.stringify({
+let Config = new JsonConfigFileClass("./config/config.json", JSON.stringify({
     "RoBot": {
-        "Websocket": "ws://127.0.0.1:22",
+        "Websocket": "ws://127.0.0.1:5555",
         "ReConnectCount": 5,
         "ReConnectTime": 4,
         "MsgLog": true,
         "NoticeLog": true,
-        "LogFile": "RoBotLog-{Y}-{M}-{D}.log",
+        "LogFile": "luminlog-{Y}{M}{D}.log",
         "ChannelSystem": false
     }
 }, null, 2));
@@ -39,11 +36,11 @@ let TMBotConfig = new JsonConfigFileClass("./config/config.json", JSON.stringify
 process.on("uncaughtException", (err, _ori) => {
     logger.error(`程序出现未捕获的异常:`);
     logger.error(`Stack: ${err.stack}`);
-    ErrorPrint("TMBot_Unknown_Error", "Unknown", `调用堆栈:
+    logger.errorPrint("Bot_Unknown_Error", "Unknown", `调用堆栈:
 \`\`\`txt
 ${err.stack}
 \`\`\`
-`, logger);
+`);
 });
 
 // process.on("uncaughtExceptionMonitor", (err, _ori) => {
@@ -51,21 +48,21 @@ ${err.stack}
 //     logger.error(`Stack: ${err.stack}`);
 // });
 
-async function delayLoadPlugins() {
-    await PluginPackage.LoadAllPackage();
+async function loadPlugins() {
+    await PluginLoader.loadAllPlugins();
 }
 
 async function load() {
     logger.info(Logo);
-    logger.info(`正在初始化TMBot...`);
-    logger.info(`开始批量连接OneBot...`);
-    let keys = TMBotConfig.getKeys(), l = keys.length, i = 0;
+    logger.info(`正在初始化 Luminide Bot...`);
+    logger.info(`开始批量连接 OneBot...`);
+    let keys = Config.getKeys(), l = keys.length, i = 0;
     // console.log(conf.read())
     while (i < l) {
         let name = keys[i++];
         // console.log(name)
         try {
-            let obj = TMBotConfig.get(name);
+            let obj = Config.get(name);
             let ws = obj["Websocket"],
                 reConnCount = obj["ReConnectCount"],
                 reConnTime = obj["ReConnectTime"];
@@ -84,13 +81,15 @@ async function load() {
             } else if (typeof (obj["ChannelSystem"]) != "boolean") {
                 throw new Error(`ChannelSystem(频道系统)参数必须为布尔!`);
             }
-            await BotDockingMgr._NewBot(name, ws, reConnCount, reConnTime, obj);
+            await BotManager.newBot(name, ws, reConnCount, reConnTime, obj);
         } catch (e) {
             logger.error(`连接 [${name}] 失败!`);
             logger.error((e as Error).stack);
         }
     }
-    await delayLoadPlugins();
-    logger.info(`TMBot加载完成!Version: ${Version.version.join(".")}${Version.isBeta ? "Beta" : ""}`);
+    await loadPlugins();
+    logger.info('>> §6Luminide §rBot Started!');
+    logger.info(`>> §eVersion: §r${Version.version.join(".")}remake`);
+    logger.info(`>> §e${await fetch("https://v1.hitokoto.cn/?encode=text")}`);
 }
 load();

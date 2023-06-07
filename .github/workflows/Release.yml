@@ -16,37 +16,37 @@ jobs:
         run: |
           npm i
           npm install typescript
-      - name: Build TMBot
+      - name: Build Luminide
         run: |
-          mkdir TMBot
-          tsc --outDir ./TMBot/ -watch false
+          mkdir Luminide
+          tsc --outDir ./Luminide/ -watch false
       - name: Copy Files
         run: |
-          cp TMBotStart.exe ./TMBot/
-          cp package.json ./TMBot/
+          cp LuminideStart.exe ./Luminide/
+          cp package.json ./Luminide/
       - name: Build Linux Startup Files
         run: |
           mkdir build
           cd build
-          cmake ../TMBotStart/
+          cmake ../LuminideStart/
           make -j 4
       - name: Pack Release
         id: pack
         working-directory: ${{ env.GITHUB_WORKSPACE }}
         run: |
-          cd TMBot
-          7z a TMBot-Release.zip -r
+          cd Luminide
+          7z a Luminide-Release.zip -r
       - name: Get version
         id: version
         uses: notiz-dev/github-action-json-property@release
         with:
           path: "package.json"
           prop_path: "version"
-      - name: Upload TMBot
+      - name: Upload Luminide
         uses: actions/upload-artifact@v3.1.0
         with:
-          name: TMBot
-          path: ./TMBot/
+          name: Luminide
+          path: ./Luminide/
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
@@ -54,6 +54,6 @@ jobs:
           tag_name: v${{steps.version.outputs.prop}}
           token: ${{ secrets.RELEASE_TOKEN }}
           files: |
-            ./TMBot/TMBot-Release.zip
+            ./Luminide/Luminide-Release.zip
         env:
-          GITHUB_REPOSITORY: TMBotDev/TMBot
+          GITHUB_REPOSITORY: Peckot-Studios/Luminide

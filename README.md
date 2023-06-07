@@ -1,4 +1,4 @@
-# TMBot
+# Luminide
 
 OneBot标准的TMBot插件加载框架（WebsocketClient） 推荐使用go-cqhttp配合使用
 

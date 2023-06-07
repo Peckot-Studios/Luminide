@@ -1,2 +1,0 @@
-1. guild 撤回消息未完善
-file：GuildMsgInfo, OneBotDocking

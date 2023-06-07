@@ -1,29 +1,25 @@
 import path from "path";
-import { Version } from "../src/main/App";
-import { Logger } from "../tools/Logger";
-import { WebsocketClient } from "./WebSocket";
-import { Event } from "./Event";
+import { Version } from "../App";
+import { Logger } from "../entities/Logger";
+import { WebSocket } from "../entities/WebSocket";
+import { Event } from "../events/Event";
 import { AnonymousInfo } from "./QQDataTypes/AnonymousInfo";
 import { DeviceInfo } from "./QQDataTypes/DeviceInfo";
 import { FileInfo } from "./QQDataTypes/FileInfo";
 import { FriendInfo } from "./QQDataTypes/FriendInfo";
-import { GroupBaseInfo } from "./QQDataTypes/GroupBaseInfo";
-import { GroupInfo } from "./QQDataTypes/GroupInfo";
-import { GroupMemberInfo } from "../src/main/entities/GroupMemberInfo";
+import { Group, GroupInfo } from "../entities/group/Group";
+import { GroupMemberInfo } from "./QQDataTypes/GroupMemberInfo";
 import { HonorType } from "./QQDataTypes/HonorType";
 import { MsgInfo, MsgInfoEx, Msg_Info } from "./QQDataTypes/MsgInfo";
 import { OfflineFileInfo } from "./QQDataTypes/OfflineFileInfo";
 import { SenderInfo } from "./QQDataTypes/SenderInfo";
-import { StrangerInfo } from "./QQDataTypes/StrangerInfo";
+import { Stranger } from "../entities/account/Sender";
 import { GuildInfo } from "./QQChannelTypes/GuildInfo";
-import { ErrorPrint } from "./ErrorPrint";
+import { ErrorPrint } from "../utils/LogUtils";
 import { GuildMetaInfo } from "./QQChannelTypes/GuildMetaInfo";
 import { ChannelInfo } from "./QQChannelTypes/ChannelInfo";
 import { GuildMemberInfo, GuildMemberProfileInfo } from "./QQChannelTypes/GuildMemberInfo";
-
-
-// let logger = new Logger("Bot", LoggerLevel.Info);
-
+import { EventManager } from "../events/EventManager";
 
 export type obj = { [key: string]: any };
 
@@ -58,10 +54,10 @@ export type ret_data_struct = {
 }
 
 
-async function SafeGetGroupInfo(this: OneBotDocking, group_id: number) {
+async function SafeGetGroupInfo(this: Bot, group_id: number) {
     let group = this.getGroupInfoSync(group_id);
     if (group == null) {
-        group = new GroupInfo({
+        group = new Group({
             "group_id": group_id,
             "group_name": (await this.getGroupBaseInfoEx(group_id))!.group_name
         });
@@ -94,7 +90,7 @@ function CQCodeDataToObj(e: string) {
 /**
  * 自动替换CQ码
  */
-async function AutoReplaceCQCode(msg: string, _this: OneBotDocking, fn: (name: string, data: obj) => Promise<string>) {
+async function AutoReplaceCQCode(msg: string, _this: Bot, fn: (name: string, data: obj) => Promise<string>) {
     let CQCodeIndex = msg.indexOf("[CQ:");
     while (CQCodeIndex != -1) {
         let CCLIndex = CQCodeIndex + 4;
@@ -120,7 +116,7 @@ async function AutoReplaceCQCode(msg: string, _this: OneBotDocking, fn: (name: s
 /**
  * 处理OneBot消息
  */
-async function ProcessOneBotMessage(this: OneBotDocking, obj: obj) {
+async function ProcessOneBotMessage(this: Bot, obj: obj) {
     let sender = new SenderInfo(obj.sender);
     // console.log(obj.sender);
 
@@ -139,7 +135,7 @@ async function ProcessOneBotMessage(this: OneBotDocking, obj: obj) {
                 msg
             );
 
-            this.conf["MsgLog"] && this.logger.info(`私聊消息: ${sender.nickname} >> ${await AutoReplaceCQCode(TruncateString(msg.originalContent, 100), this, async (name, _d) => name)}`);
+            this.config["MsgLog"] && this.logger.info(`私聊消息: ${sender.nickname} >> ${await AutoReplaceCQCode(TruncateString(msg.originalContent, 100), this, async (name, _d) => name)}`);
             break;
         }
         case "group": {
@@ -165,7 +161,7 @@ async function ProcessOneBotMessage(this: OneBotDocking, obj: obj) {
                 member,
                 msg
             );
-            this.conf["MsgLog"] &&
+            this.config["MsgLog"] &&
                 this.logger.info(`[${group.group_name}(${group.group_id})] ${sender.nickname} >> ${TruncateString(await AutoReplaceCQCode(msg.originalContent, this, async (name, data) => {
                     if (name.toLowerCase() == "at") {
                         let user = (await group.refreshMemberInfo(this, +data["qq"]));
@@ -191,7 +187,7 @@ async function ProcessOneBotMessage(this: OneBotDocking, obj: obj) {
 /**
  * 处理OneBot通知
  */
-async function ProcessOneBotNotice(this: OneBotDocking, obj: obj) {
+async function ProcessOneBotNotice(this: Bot, obj: obj) {
     // console.log(obj);
     switch (obj.notice_type as "group_upload" | "group_admin" | "group_decrease" | "group_increase" | "group_ban" | "group_recall" | "friend_add" | "friend_recall" | "notify" | "group_card" | "offline_file" | "client_status" | "essence" | "message_reactions_updated" | "channel_updated" | "channel_created" | "channel_destroyed") {
         case "group_upload": {
@@ -219,7 +215,7 @@ async function ProcessOneBotNotice(this: OneBotDocking, obj: obj) {
             );
             let perms = ["Admin", "Member"];
             await group.refreshMemberInfo(this, member.user_id);
-            this.conf["NoticeLog"] && this.logger.info(`[${group.group_name} (${group.group_id})]群管理员变动: ${member.card || member.nickname} (${member.user_id}) (${perms[+(obj.sub_type == "set")]}) -> (${perms[+(obj.sub_type == "unset")]})`);
+            this.config["NoticeLog"] && this.logger.info(`[${group.group_name} (${group.group_id})]群管理员变动: ${member.card || member.nickname} (${member.user_id}) (${perms[+(obj.sub_type == "set")]}) -> (${perms[+(obj.sub_type == "unset")]})`);
             break;
         }
         case "group_decrease": {
@@ -236,16 +232,16 @@ async function ProcessOneBotNotice(this: OneBotDocking, obj: obj) {
             );
             if (group.Owner!.user_id == obj.user_id) {
                 this.Groups.delete(obj.group_id);
-                this.conf["NoticeLog"] && this.logger.info(`群聊: [${group.group_name}](${group.group_id}) 已解散`);
+                this.config["NoticeLog"] && this.logger.info(`群聊: [${group.group_name}](${group.group_id}) 已解散`);
             } else if (obj.user_id == this.LoginInfo.user_id) {
                 this.Groups.delete(group.group_id);
-                this.conf["NoticeLog"] && this.logger.info(`登录号${["被踢出", "离开"][+(obj.sub_type != "kick_me")]} 群聊: ${group.group_name} (${group.group_id})`);
+                this.config["NoticeLog"] && this.logger.info(`登录号${["被踢出", "离开"][+(obj.sub_type != "kick_me")]} 群聊: ${group.group_name} (${group.group_id})`);
             } else if (obj.sub_type == "leave") {
                 if (member.role == "owner") {
                     (group.getAdmins(false) as Map<number, GroupMemberInfo>).delete(member.user_id);
                 }
                 (group.getMembers(false) as Map<number, GroupMemberInfo>).delete(member.user_id);
-                this.conf["NoticeLog"] && this.logger.info(`[${group.group_name} (${group.group_id})] 成员 ${member.card || member.nickname} (${member.user_id}) 退出群聊`);
+                this.config["NoticeLog"] && this.logger.info(`[${group.group_name} (${group.group_id})] 成员 ${member.card || member.nickname} (${member.user_id}) 退出群聊`);
             }
             break;
         }
@@ -256,25 +252,25 @@ async function ProcessOneBotNotice(this: OneBotDocking, obj: obj) {
                 this.logger.error(`无法获取群聊 < ${obj.group_id}> 基础信息`);
                 return;
             }
-            let baseGroupInfo = new GroupBaseInfo(data);
+            let baseGroupInfo = new GroupInfo(data);
             let strangeInfo = await this.getStrangerInfoEx(obj.user_id);
             let op = await this.getStrangerInfoEx(obj.operator_id);
             if (obj.user_id == this.LoginInfo.user_id) {
-                this.conf["NoticeLog"] && this.logger.info(`登录号加入群聊: ${baseGroupInfo.group_name} (${baseGroupInfo.group_id}) !`);
-                let group = new GroupInfo({ "group_name": baseGroupInfo.group_name, "group_id": baseGroupInfo.group_id });
+                this.config["NoticeLog"] && this.logger.info(`登录号加入群聊: ${baseGroupInfo.group_name} (${baseGroupInfo.group_id}) !`);
+                let group = new Group({ "group_name": baseGroupInfo.group_name, "group_id": baseGroupInfo.group_id });
                 await group._init(this);
                 this.Groups.set(baseGroupInfo.group_id, group);
             } else {
                 let group = await SafeGetGroupInfo.call(this, obj.group_id);
                 let member = (await group.refreshMemberInfo(this, obj.user_id))!;
-                this.conf["NoticeLog"] && this.logger.info(`[${group.group_name} (${group.group_id})]加入新成员: ${strangeInfo?.nickname} (${member.user_id})`);
+                this.config["NoticeLog"] && this.logger.info(`[${group.group_name} (${group.group_id})]加入新成员: ${strangeInfo?.nickname} (${member.user_id})`);
             }
             this.events.onGroupJoin.fire(
                 "OneBotDockingProcess_Event_GroupJoin",
                 obj.time * 1000,
                 baseGroupInfo,
                 (obj.sub_type == "invite"),
-                strangeInfo as StrangerInfo,
+                strangeInfo as Stranger,
                 op
             );
             break;
@@ -465,7 +461,7 @@ async function ProcessOneBotNotice(this: OneBotDocking, obj: obj) {
 /**
  * 处理OneBot请求
  */
-async function ProcessOneBotRequest(this: OneBotDocking, obj: obj) {
+async function ProcessOneBotRequest(this: Bot, obj: obj) {
     // console.log(obj);
     switch (obj.request_type as "friend" | "group") {
         case "friend": {
@@ -499,7 +495,7 @@ async function ProcessOneBotRequest(this: OneBotDocking, obj: obj) {
 /**
  * 处理OneBot频道事件(各类分支)
  */
-async function ProcessOneBotGuildEvent(this: OneBotDocking, obj: obj) {
+async function ProcessOneBotGuildEvent(this: Bot, obj: obj) {
     // console.log(obj)
     switch (obj.post_type as "message" | "notice") {
         case "message": {
@@ -516,7 +512,7 @@ async function ProcessOneBotGuildEvent(this: OneBotDocking, obj: obj) {
 /**
  * 处理OneBot元数据
  */
-async function ProcessOneBotMetaEvent(this: OneBotDocking, obj: obj) {
+async function ProcessOneBotMetaEvent(this: Bot, obj: obj) {
     // console.log(obj);
     switch (obj.meta_event_type as "lifecycle" | "heartbeat") {
         case "lifecycle": {
@@ -556,117 +552,120 @@ async function ProcessOneBotMetaEvent(this: OneBotDocking, obj: obj) {
 //     clear() { return this.map.clear(); }
 // }
 
-export class OneBotDocking {
-    private _LoginInfo = { "user_id": -1, "nickname": "Unknown" };
+export class Bot {
+    private botInfo = { "user_id": -1, "nickname": "Unknown" };
     // public MsgIDMap = new Map<number, MsgInfo>();
     private _RequestCallbacks: {
         [key: string]: (obj: ret_data_struct) => void
     } = {};
-    /**是否正在关闭*/
-    private _isClosing: boolean = false;
-    private _Friends = new Map<number, FriendInfo>();
-    private _Groups = new Map<number, GroupInfo>();
-    private _IsInitd = false;//是否成功初始化
+    private closing: boolean = false; // 是否正在关闭
+    private friends = new Map<number, FriendInfo>();
+    private groups = new Map<number, Group>();
+    private initialized = false; // 是否成功初始化
 
-    private DelayLogger = { "error": (...msg: any[]) => { this.logger.error(...msg); } };
+    private delayLogger = { "error": (...msg: any[]) => { this.logger.error(...msg); } };
 
-    private _guildSystem: undefined | GuildSystem = new GuildSystem(this);
+    private guildSystem: undefined | GuildSystem = new GuildSystem(this);
 
     // public ShareData = new ShareData();
 
     private _events = {
-        "onRawMessage": new Event<(rawInfo: string, ori: (isExecute: boolean, raw: string) => void) => void>(this.DelayLogger),
+        "onRawMessage": new Event<(rawInfo: string, ori: (isExecute: boolean, raw: string) => void) => void>(this.delayLogger),
         /**
          * ```
          * 初始化数据成功
          * 此监听会重复触发,因为重新连接也会初始化一次数据
          * ```
          */
-        "onInitSuccess": new Event<() => void>(this.DelayLogger),
+        "onInitSuccess": new Event<() => void>(this.delayLogger),
         /**
          * 此监听可能会重复触发,因为重连机制
          */
-        "onClientDisconnect": new Event<() => void>(this.DelayLogger),
-        "onClientDestroy": new Event<() => void>(this.DelayLogger),
-        "onClientStatusChanged": new Event<(device: DeviceInfo, online: boolean) => void>(this.DelayLogger),
-        "onPrivateMsg": new Event<(senderInfo: SenderInfo, sub_type: "friend" | "group" | "discuss" | "other", msgInfo: MsgInfo) => void>(this.DelayLogger),
-        "onGroupMsg": new Event<(groupInfo: GroupInfo, sub_type: "normal" | "anonymous" | "notice", groupMemberInfo: GroupMemberInfo | AnonymousInfo, msgInfo: MsgInfo) => void>(this.DelayLogger),
+        "onClientDisconnect": new Event<() => void>(this.delayLogger),
+        "onClientDestroy": new Event<() => void>(this.delayLogger),
+        "onClientStatusChanged": new Event<(device: DeviceInfo, online: boolean) => void>(this.delayLogger),
+        "onPrivateMsg": new Event<(senderInfo: SenderInfo, sub_type: "friend" | "group" | "discuss" | "other", msgInfo: MsgInfo) => void>(this.delayLogger),
+        "onGroupMsg": new Event<(groupInfo: Group, sub_type: "normal" | "anonymous" | "notice", groupMemberInfo: GroupMemberInfo | AnonymousInfo, msgInfo: MsgInfo) => void>(this.delayLogger),
         // "onDiscussMsg": new Event<(discussInfo: DiscussInfo, senderInfo: SenderInfo, msgInfo: MsgInfo) => void>(),
-        "onGroupUploadFile": new Event<(groupInfo: GroupInfo, groupMemberInfo: GroupMemberInfo, fileInfo: FileInfo) => void>(this.DelayLogger),
-        "onGroupAdminChange": new Event<(groupInfo: GroupInfo, memberInfo: GroupMemberInfo, sub_type: "set" | "unset") => void>(this.DelayLogger),
+        "onGroupUploadFile": new Event<(groupInfo: Group, groupMemberInfo: GroupMemberInfo, fileInfo: FileInfo) => void>(this.delayLogger),
+        "onGroupAdminChange": new Event<(groupInfo: Group, memberInfo: GroupMemberInfo, sub_type: "set" | "unset") => void>(this.delayLogger),
         /**
          * @note leave//主动离开,kick//被踢,//kick_me//登录号被踢
          */
-        "onGroupLeave": new Event<(groupInfo: GroupInfo, sub_type: "leave" | "kick" | "kick_me", memberInfo: GroupMemberInfo, operator: StrangerInfo | undefined) => void>(this.DelayLogger),
-        "onGroupJoin": new Event<(groupInfo: GroupBaseInfo, isInvite: boolean, strangerInfo: StrangerInfo, operator: StrangerInfo | undefined) => void>(this.DelayLogger),
-        "onGroupWholeMute": new Event<(group: GroupInfo, isUnMute: boolean, operator: GroupMemberInfo) => void>(this.DelayLogger),
-        "onGroupMute": new Event<(groupInfo: GroupInfo, isUnMute: boolean, memberInfo: GroupMemberInfo, operator: GroupMemberInfo) => void>(this.DelayLogger),
-        "onGroupRecall": new Event<(groupInfo: GroupInfo, memberInfo: GroupMemberInfo, operator: GroupMemberInfo, msg: MsgInfoEx) => void>(this.DelayLogger),
-        "onFriendAdd": new Event<(strangerInfo: StrangerInfo) => void>(this.DelayLogger),
-        "onFriendRecall": new Event<(friendInfo: FriendInfo, msg: MsgInfoEx) => void>(this.DelayLogger),
-        "onFriendRequestAdd": new Event<(strangerInfo: StrangerInfo, comment: string, flag: string) => void>(this.DelayLogger),
-        "onGroupRequestJoin": new Event<(groupInfo: GroupBaseInfo, isInviteSelf: boolean, strangerInfo: StrangerInfo, comment: string, flag: string) => void>(this.DelayLogger),
-        "onGroupPoke": new Event<(group: GroupInfo, sender: GroupMemberInfo, target: GroupMemberInfo) => void>(this.DelayLogger),
-        "onFriendPoke": new Event<(sender: FriendInfo) => void>(this.DelayLogger),
-        "onGroupRedPacketLuckKing": new Event<(group: GroupInfo, sender: GroupMemberInfo, target: GroupMemberInfo) => void>(this.DelayLogger),
-        "onGroupHonorChanged": new Event<(group: GroupInfo, honor: HonorType, member: GroupMemberInfo) => void>(this.DelayLogger),
-        "onGroupCardChanged": new Event<(group: GroupInfo, member: GroupMemberInfo, card: string) => void>(this.DelayLogger),
-        "onReceiveOfflineFile": new Event<(stranger: StrangerInfo, offlineFile: OfflineFileInfo) => void>(this.DelayLogger),
-        "onGroupEssenceMsgChanged": new Event<(group: GroupInfo, sub_type: "add" | "delete", sender: GroupMemberInfo, operator: GroupMemberInfo, msg: MsgInfoEx) => void>(this.DelayLogger),
+        "onGroupLeave": new Event<(groupInfo: Group, sub_type: "leave" | "kick" | "kick_me", memberInfo: GroupMemberInfo, operator: Stranger | undefined) => void>(this.delayLogger),
+        "onGroupJoin": new Event<(groupInfo: GroupInfo, isInvite: boolean, strangerInfo: Stranger, operator: Stranger | undefined) => void>(this.delayLogger),
+        "onGroupWholeMute": new Event<(group: Group, isUnMute: boolean, operator: GroupMemberInfo) => void>(this.delayLogger),
+        "onGroupMute": new Event<(groupInfo: Group, isUnMute: boolean, memberInfo: GroupMemberInfo, operator: GroupMemberInfo) => void>(this.delayLogger),
+        "onGroupRecall": new Event<(groupInfo: Group, memberInfo: GroupMemberInfo, operator: GroupMemberInfo, msg: MsgInfoEx) => void>(this.delayLogger),
+        "onFriendAdd": new Event<(strangerInfo: Stranger) => void>(this.delayLogger),
+        "onFriendRecall": new Event<(friendInfo: FriendInfo, msg: MsgInfoEx) => void>(this.delayLogger),
+        "onFriendRequestAdd": new Event<(strangerInfo: Stranger, comment: string, flag: string) => void>(this.delayLogger),
+        "onGroupRequestJoin": new Event<(groupInfo: GroupInfo, isInviteSelf: boolean, strangerInfo: Stranger, comment: string, flag: string) => void>(this.delayLogger),
+        "onGroupPoke": new Event<(group: Group, sender: GroupMemberInfo, target: GroupMemberInfo) => void>(this.delayLogger),
+        "onFriendPoke": new Event<(sender: FriendInfo) => void>(this.delayLogger),
+        "onGroupRedPacketLuckKing": new Event<(group: Group, sender: GroupMemberInfo, target: GroupMemberInfo) => void>(this.delayLogger),
+        "onGroupHonorChanged": new Event<(group: Group, honor: HonorType, member: GroupMemberInfo) => void>(this.delayLogger),
+        "onGroupCardChanged": new Event<(group: Group, member: GroupMemberInfo, card: string) => void>(this.delayLogger),
+        "onReceiveOfflineFile": new Event<(stranger: Stranger, offlineFile: OfflineFileInfo) => void>(this.delayLogger),
+        "onGroupEssenceMsgChanged": new Event<(group: Group, sub_type: "add" | "delete", sender: GroupMemberInfo, operator: GroupMemberInfo, msg: MsgInfoEx) => void>(this.delayLogger),
         /**
          * 心跳包触发
-         * @note interval是心跳包触发时间
+         * @note interval 是心跳包触发时间
          */
-        "onHeartBeat": new Event<(interval: number) => void>(this.DelayLogger),
+        "onHeartBeat": new Event<(interval: number) => void>(this.delayLogger),
         /**
          * 生命周期
          * @note 首次建立连接插件会错过connect生命周期,建议使用onInitSuccess代替connect生命周期
         */
-        "onLifecycle": new Event<(type: "enable" | "disable" | "connect") => void>(this.DelayLogger)
+        "onLifecycle": new Event<(type: "enable" | "disable" | "connect") => void>(this.delayLogger)
     }
 
-    public logger: Logger;
+    private logger: Logger;
+
     constructor(
-        public Name: string,
-        private wsc: WebsocketClient,
-        public conf: obj
+        private name: string,
+        private eventManager: EventManager,
+        private webSocket: WebSocket,
+        private options: obj
     ) {
-        this.logger = new Logger(Name, (Version.isDebug ? 5 : 4));
-        this._Init();
-        if (!!(conf["LogFile"] || "").trim()) {
-            this.logger.setFile(path.join("./logs", conf["LogFile"]));
+        this.logger = new Logger(name, (Version.isDebug ? 5 : 4));
+        this.initialize();
+        if (!!(options["LogFile"] || "").trim()) {
+            this.logger.setFile(path.join("./logs", options["LogFile"]));
         }
     }
 
     /**
      * 是否初始化完成
      */
-    get isInitd() { return this._IsInitd; }
+    public isInitialized() { return this.initialized; }
     /**
      * WS对象是否已被销毁
      */
-    get WsIsDestroyed() { return this.wsc.isDestroy; }
+    public isWebSockedDestroyed() { return this.webSocket.isDestroy; }
     /** 
      * 客户端是否正在关闭
      */
-    get isClosing() { return this._isClosing; }
+    public isClosing() { return this.closing; }
     /**
      * 频道相关
      */
-    get guildSystem() {
-        return this._guildSystem;
+    public getGuildSystem() {
+        return this.guildSystem;
     }
 
-    get Client() { return this.wsc; }
-    get events() { return this._events; }
-    get LoginInfo() { return { "user_id": this._LoginInfo.user_id, "nickname": this._LoginInfo.nickname }; }
-    get Groups() { return this._Groups; }
-    get Friends() { return this._Friends; }
+    public getWebSocket() { return this.webSocket; }
+    public getLogger() { return this.logger; }
+    public getEventManager() { return this.eventManager; }
+    public getEvents() { return this._events; }
+    public getBotInfo() { return { "user_id": this.botInfo.user_id, "nickname": this.botInfo.nickname }; }
+    public getGroups() { return this.groups; }
+    public getFriends() { return this.friends; }
 
-    _Init() {
-        this._IsInitd = false;
+    initialize() {
+        this.initialized = false;
         this._RequestCallbacks = {};
-        this.wsc.events.onStart.on(async () => {
+        this.webSocket.events.onStart.on(async () => {
             // this.sendMsg("group", 1073980007, "复读机已启动");
             // this._SendReqPro("get_group_member_list", {
             //     "group_id": 1073980007
@@ -679,13 +678,13 @@ export class OneBotDocking {
                 (await this._loadGroupsInfo())) {
                 this._events.onInitSuccess.fire("OneBotDockingProcess_Event_InitSuccess", null);
                 this.logger.info(`基础信息初始化成功!`);
-                if (!this.conf["ChannelSystem"] || !this._guildSystem!._Init()) { this._guildSystem = undefined; }
-                this._IsInitd = true;
+                if (!this.options["ChannelSystem"] || !this.guildSystem!._Init()) { this.guildSystem = undefined; }
+                this.initialized = true;
             } else {
                 this.logger.fatal(`基础信息初始化失败!`);
             }
         });
-        this.wsc.events.onMsg.on((msg, isBuff) => {
+        this.webSocket.events.onMsg.on((msg, isBuff) => {
             if (isBuff) { this.logger.warn("暂不支持Buffer信息!"); return; }
             let msg_ = msg as string, b = true;
             this.events.onRawMessage.fire(
@@ -713,7 +712,7 @@ export class OneBotDocking {
                 }
                 return;
             }
-            if (this._isClosing) { return; }
+            if (this.closing) { return; }
             // console.log(obj)
             switch (obj.post_type as "message" | "notice" | "request" | "meta_event") {
                 case "message": {
@@ -734,7 +733,7 @@ export class OneBotDocking {
                 }
             }
         });
-        this.wsc.events.onClose.on((code, desc) => {
+        this.webSocket.events.onClose.on((code, desc) => {
             // this.logger.warn(`WS已断开!退出码: ${ code }, DESC:${ desc } `);
 
             // this._events.onClientClose.fire(
@@ -745,7 +744,7 @@ export class OneBotDocking {
                 null
             );
         });
-        this.wsc.events.onDestroy.on(() => {
+        this.webSocket.events.onDestroy.on(() => {
             this._events.onClientDestroy.fire(
                 "OneBotDockingProcess_Event_ClientClose",
                 null
@@ -757,10 +756,10 @@ export class OneBotDocking {
     }
 
     SafeClose(code: number = 1000) {
-        this._isClosing = true;
+        this.closing = true;
         let closeTime = Date.now();
         let close = () => {
-            this.wsc.destroy(code);
+            this.webSocket.destroy(code);
             clearInterval(sid);
         };
         let sid = setInterval(() => {
@@ -800,13 +799,13 @@ ${err.stack}
             }
             oriFunc(obj);
         };
-        if (this._isClosing || this.wsc.client.readyState != this.wsc.client.OPEN) {
+        if (this.closing || this.webSocket.client.readyState != this.webSocket.client.OPEN) {
             let info = "Websocket连接未建立!无法发起请求!";
             func({ "status": "failed", "retcode": -1, "wording": info, "msg": "API_ERROR", "message": info, "data": null });
             return;
         }
         this._RequestCallbacks[id] = func;
-        this.wsc.send(content);
+        this.webSocket.send(content);
     }
     _SendReqPro(type: string, params: { [key: string]: any }) {
         let pro = new Promise<ret_data_struct>((outMsg, outErr) => {
@@ -824,7 +823,7 @@ ${err.stack}
             this.logger.error(`登录号信息获取失败!`);
             return false;
         }
-        this._LoginInfo = {
+        this.botInfo = {
             "user_id": data.user_id,
             "nickname": data.nickname
         }
@@ -833,7 +832,7 @@ ${err.stack}
     }
     async _loadFriends() {
         this.logger.info("正在加载好友列表...");
-        this._Friends.clear();
+        this.friends.clear();
         let val = await this.getFriendList();
         let data = val.data as ({
             "ClassType": "FriendData",
@@ -847,7 +846,7 @@ ${err.stack}
         } else {
             let i = 0;
             data.forEach((val) => {
-                this._Friends.set(val.user_id, new FriendInfo(val));
+                this.friends.set(val.user_id, new FriendInfo(val));
                 this.logger.info(`加载好友: ${val.remark || val.nickname} (${val.user_id})`);
                 i++;
             });
@@ -857,7 +856,7 @@ ${err.stack}
     }
     async _loadGroupsInfo() {
         this.logger.info("正在加载群聊信息...");
-        this._Groups.clear();
+        this.groups.clear();
         let val = await this.getGroupList();
         let data = val.data as any[] | null;
         if (data == null) {
@@ -866,25 +865,25 @@ ${err.stack}
         }
         for (let i = 0, l = data.length; i < l; i++) {
             let val = data[i];
-            if (!this._Groups.has(val.group_id)) {
-                let groupInfo = new GroupInfo(val);
+            if (!this.groups.has(val.group_id)) {
+                let groupInfo = new Group(val);
                 await groupInfo._init(this);
-                this._Groups.set(groupInfo.group_id, groupInfo);
+                this.groups.set(groupInfo.group_id, groupInfo);
             }
         }
         return true;
     }
 
-    groupBaseInfoGetGroupInfo(base: GroupBaseInfo) {
-        return this._Groups.get(base.group_id);
+    groupBaseInfoGetGroupInfo(base: GroupInfo) {
+        return this.groups.get(base.group_id);
     }
 
     getGroupInfoSync(group_id: number) {
-        return this._Groups.get(group_id);
+        return this.groups.get(group_id);
     }
 
     getFriendInfoSync(user_id: number) {
-        return this._Friends.get(user_id);
+        return this.friends.get(user_id);
     }
 
     async RefreshAllFriendInfo() {
@@ -898,10 +897,10 @@ ${err.stack}
             this.logger.error(`刷新好友列表失败!`);
             return false;
         }
-        this._Friends.clear();
+        this.friends.clear();
         data.forEach((val) => {
             let friendInfo = new FriendInfo(val);
-            this._Friends.set(friendInfo.user_id, friendInfo);
+            this.friends.set(friendInfo.user_id, friendInfo);
         });
         return true;
     }
@@ -912,7 +911,7 @@ ${err.stack}
             this.logger.error(`获取群聊 ${group_id} 基础信息失败!`);
             return;
         }
-        return new GroupBaseInfo(data);
+        return new GroupInfo(data);
     }
 
     async getStrangerInfoEx(user_id: number, no_cache: boolean = true) {
@@ -922,7 +921,7 @@ ${err.stack}
             this.logger.error(`获取陌生人 ${user_id} 信息失败!`);
             return;
         }
-        return new StrangerInfo(data);
+        return new Stranger(data);
     }
 
     async getGroupMemberInfoEx(group_id: number, user_id: number, no_cache: boolean = true) {
@@ -1003,7 +1002,7 @@ ${err.stack}
      * @param user_id 
      * @param duration 秒,0代表取消
      */
-    groupMute(group_id: number, user_id: number, duration: number = 60 * 30) {
+    muteGroupMember(group: Group, groupMember, , duration: number = 60 * 30) {
         return this._SendReqPro("set_group_ban", { "group_id": group_id, "user_id": user_id, "duration": duration });
     }
     groupMuteAnonymous(group_id: number, anonymous_flag: string, duration: number = 60 * 30) {
@@ -1355,7 +1354,7 @@ ${err.stack}
 export class GuildSystem {
     private _Profile = { "nickname": "Unknown", "tiny_id": "-1", "avatar_url": "" }
     private _Guilds = new Map<string, GuildInfo>();
-    constructor(protected _this: OneBotDocking) { }//这里的运行时间在主类初始化之前
+    constructor(protected _this: Bot) { }//这里的运行时间在主类初始化之前
     private get log() { return this._this.logger; }
     /** 在主类执行_Init的时候这玩意会自动执行 */
     async _Init() {
@@ -1577,12 +1576,12 @@ export {
     DeviceInfo,
     FileInfo,
     FriendInfo,
-    GroupBaseInfo,
-    GroupInfo,
+    GroupInfo as GroupBaseInfo,
+    Group as GroupInfo,
     GroupMemberInfo,
     HonorType,
     MsgInfo,
     OfflineFileInfo,
     SenderInfo,
-    StrangerInfo
+    Stranger as StrangerInfo
 };

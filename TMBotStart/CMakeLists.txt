@@ -1,2 +1,2 @@
-project(TMBotStart)
-add_executable(TMBotStart src/main.cpp)
+project(LuminideStart)
+add_executable(LuminideStart src/main.cpp)
