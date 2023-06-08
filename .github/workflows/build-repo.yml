@@ -26,7 +26,6 @@ jobs:
           tsc --outDir ./Luminide/ -watch false
       - name: Copy Files
         run: |
-          cp LuminideStart.exe ./Luminide/
           cp package.json ./Luminide/
       - name: Build Linux Startup Files
         run: |
