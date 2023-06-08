@@ -2,7 +2,7 @@ import * as process from "process";
 import * as fs from "fs";
 import * as path from "path";
 import { FileClass } from "../../utils/FileUtils";
-import { Version } from "../../App";
+import { Version } from "../../../App";
 // import { ServerPlayer } from "bdsx/bds/player";
 // import { bedrockServer } from "bdsx/launcher";
 // import { TextPacket } from "bdsx/bds/packets";

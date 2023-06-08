@@ -1,7 +1,7 @@
-import { BotManager } from "./hooks/BotManager";
-import { JsonConfigFileClass } from "../../tools/DataUtils";
-import { Logger } from "./entities/system/Logger";
-import { PluginLoader } from "./plugins/PluginLoader";
+import { BotManager } from "./src/hooks/BotManager";
+import { JsonConfigFileClass } from "./src/utils/DataUtils";
+import { Logger } from "./src/entities/system/Logger";
+import { PluginLoader } from "./src/plugins/PluginLoader";
 
 let Logo = String.raw`
    __                _        _     __
@@ -11,7 +11,7 @@ let Logo = String.raw`
 
 `;
 
-let logger = new Logger("Lumin");
+let logger = new Logger("Luminide");
 
 export let Version = {
     "version": [1, 0, 2],

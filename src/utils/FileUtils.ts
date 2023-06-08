@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import { Version } from "../App";
+import { Version } from "../../App";
 import { Logger } from "../entities/system/Logger";
 
 
