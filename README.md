@@ -11,12 +11,13 @@
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
 
-<!-- PROJECT LOGO -->
 <br/>
+
+<!-- PROJECT LOGO -->
 
 <p align="center">
   <a href="https://github.com/Peckot-Studios/Luminide">
-    <img src="logo.png" alt="Logo" width="500" height="500">
+    <img src="Luminide.png" alt="Luminide" width="500" height="500">
   </a>
 
   <h3 align="center">一个基于 OneBot 标准的 WebSocket Client 插件加载框架</h3>
