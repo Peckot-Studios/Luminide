@@ -46,7 +46,7 @@ jobs:
       #     cp ./build-windows/Release/LuminideStart.exe ./Luminide/
       - name: 打包文件
         id: pack
-        working-directory: ${{ env.GITHUB_WORKSPACE }}
+        working-directory: ${{ github.workspace }}
         run: |
           cd Luminide
           7z a Luminide-Release.zip -r
@@ -66,7 +66,7 @@ jobs:
         with:
           body_path: ${{ github.workspace }}/.github/Release-Description.md
           tag_name: v${{ steps.version.outputs.prop }}
-          token: ${{ secrets.RELEASE_TOKEN }}
+          token: ${{ secrets.AUTO_RELEASE_TOKEN }}
           files: |
             ./Luminide/Luminide-Release.zip
         env:
