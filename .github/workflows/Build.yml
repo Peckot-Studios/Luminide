@@ -30,7 +30,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake ../LuminideStart/
+          cmake ../LuminideStart/Linux/
           make -j 4
           cd ..
       - name: 复制启动文件
@@ -65,7 +65,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake ../LuminideStart/
+          cmake ../LuminideStart/Windows/
           cmake --build .
           cd ..
       - name: 复制启动文件
