@@ -93,10 +93,7 @@ export class Bot {
     private id: number | undefined;
     private nickname: string | undefined;
 
-    private name: string;
     private logger: Logger;
-    private eventManager: EventManager;
-    private webSocket: WebSocket;
 
     private closing = false;
     private initialized = false;
@@ -104,19 +101,15 @@ export class Bot {
     private friends = new Array<Friend>();
     private groups = new Array<Group>();
     private process = new Map<string, (data: ReturnData) => void>();
-    private options: Params = {};
 
     constructor(
-        name: string,
-        eventManager: EventManager,
-        webSocket: WebSocket,
-        options: Params = {}
+        private name: string,
+        private eventManager: EventManager,
+        private webSocket: WebSocket,
+        private options: Params = {}
     ) {
         this.name = name;
-        this.logger = new Logger(name, options["Debug"] ? 5 : 4);
-        this.eventManager = eventManager;
-        this.webSocket = webSocket;
-        this.options = options;
+        this.logger = new Logger(name, options["debug"] ? 5 : 4);
         // 初始化
         this.initialized = false;
         eventManager.registerEvent(WebSocketStartedEvent, async (_event: WebSocketStartedEvent) => {
@@ -127,13 +120,13 @@ export class Bot {
                     this.logger.fatal(`登陆号信息获取失败!`);
                     return;
                 }
-                this.id = info.id;
+                this.id = info.user_id;
                 this.nickname = info.nickname;
                 this.logger.info(`登陆号信息获取完成: ${this.nickname} (${this.id})`);
             });
 
             this.logger.info(`正在获取好友列表...`);
-            BotAPI.getFriends(this).then((friends) => {
+            await BotAPI.getFriends(this).then((friends) => {
                 if (friends == null) {
                     this.logger.fatal(`好友列表获取失败!`);
                     return;
@@ -143,7 +136,7 @@ export class Bot {
             });
 
             this.logger.info(`正在获取群聊列表...`);
-            BotAPI.getGroups(this).then((groups) => {
+            await BotAPI.getGroups(this).then((groups) => {
                 if (groups == null) {
                     this.logger.fatal(`群聊列表获取失败!`);
                     return;
@@ -171,16 +164,16 @@ export class Bot {
             if (this.closing) return;
             // 处理异步回调
             if (object.echo != null) {
-                let callback: ((data: ReturnData) => void) | undefined;
-                if ((callback = this.process.get(object.echo))) {
+                if (this.process.has(object.echo)) {
+                    let callback = this.process.get(object.echo)!;
                     try {
-                        callback(object as any);
+                        callback(object);
                         this.process.delete(object.echo);
                     } catch (error) {
                         this.logger.error(`Error in RequestCallback:\n${(error as Error).stack}`);
                     }
+                    return;
                 }
-                return;
             }
             // 处理事件
             switch (object.post_type as "message" | "notice" | "request" | "meta_event") {
@@ -206,8 +199,8 @@ export class Bot {
         eventManager.registerEvent(WebSocketClosedEvent, (_event: WebSocketClosedEvent) => {
             this.eventManager.callEvent(new BotDisconnectedEvent(this));
         });
-        if (!!(options["LogFile"] || "").trim()) {
-            this.logger.setFile(path.join("./logs", options["LogFile"]));
+        if (!!(options["log"]["file"] || "").trim()) {
+            this.logger.setFile(path.join("./logs", options["log"]["file"]));
         }
     }
 
@@ -228,7 +221,7 @@ export class Bot {
                 let sender: Friend | Stranger | null = await BotAPI.getFriend(this, object.sender.user_id!);
                 if (!sender) sender = (await BotAPI.getStranger(this, object.sender.user_id!))!;
                 let message = new MessageChain(this, object as MessageChainStruct);
-                this.options["MessageLog"] && this.logger.info(
+                this.options["log"]["message"] && this.logger.info(
                     `私聊消息: ${sender.getNickname()} >> ${await BotAPI.autoReplaceCQCode(
                         this,
                         BotAPI.truncateString(message.getContent(), 100),
@@ -248,18 +241,24 @@ export class Bot {
                 } else {
                     member = (await BotAPI.getGroupMember(this, group.getId(), object.sender.user_id))!;
                 }
-                this.options["MessageLog"] &&
-                    this.logger.info(`[${group.getName()}(${group.getId()})] ${object.sender.nickname} >> ${BotAPI.truncateString(
-                        await BotAPI.autoReplaceCQCode(this, message.getContent(), async (name, data) => {
-                            if (name.toLowerCase() == "at") {
-                                let user = (await group.refresh()).getMember(+data["qq"]);
-                                if (user == null) {
-                                    name = "@" + data["qq"];
-                                } else { name = "@" + user.getCard(); }
-                            }
-                            return `§e${name}§d`;
-                        }), 100
-                    )}`);
+                this.options["log"]["message"] &&
+                    this.logger.info(`[${group.getName()}(${group.getId()})] ${member instanceof GroupMember ?
+                            member.getCard() || member.getNickname() : object.anonymous?.getName() || "匿名用户"
+                        } >> ${BotAPI.truncateString(
+                            await BotAPI.autoReplaceCQCode(this, message.getContent(), async (name, data) => {
+                                switch (name.toLowerCase()) {
+                                    case "reply": name = "回复"; break;
+                                    case "image": name = "图片"; break;
+                                    case "at": {
+                                        let user = (await group.getMember(+data["qq"]));
+                                        if (user) name = "@" + user.getCard();
+                                        else name = "@" + data["qq"];
+                                        break;
+                                    }
+                                }
+                                return `§e${name}`;
+                            }), 100
+                        )}`);
                 this.eventManager.callEvent(new GroupMessageEvent(this, group, member, message));
                 break;
             }
@@ -350,24 +349,24 @@ export class Bot {
         switch (object.notice_type) {
             case "group_upload": {
                 let group = (await BotAPI.getGroup(this, object.group_id!))!;
-                let member = group.getMember(object.user_id!)!;
+                let member = (await group.getMember(object.user_id!))!;
                 let file = new GroupFile(this, object.file! as GroupFileStruct);
                 this.eventManager.callEvent(new GroupFileUploadEvent(this, group, member, file));
                 break;
             }
             case "group_admin": {
                 let group = (await BotAPI.getGroup(this, object.group_id!))!;
-                let member = group.getMember(object.user_id!)!;
+                let member = (await group.getMember(object.user_id!))!;
                 this.eventManager.callEvent(new GroupAdminChangedEvent(this, group, member, object.sub_type));
                 let perms = ["Admin", "Member"];
                 await member.refresh();
-                this.options["NoticeLog"] && this.logger.info(`[${group.getName()} (${group.getId()})]群管理员变动: ${member.getCard() || member.getNickname()} (${member.getId()}) (${perms[+(object.sub_type == "set")]}) -> (${perms[+(object.sub_type == "unset")]})`);
+                this.options["log"]["notice"] && this.logger.info(`[${group.getName()} (${group.getId()})]群管理员变动: ${member.getCard() || member.getNickname()} (${member.getId()}) (${perms[+(object.sub_type == "set")]}) -> (${perms[+(object.sub_type == "unset")]})`);
                 break;
             }
             case "group_decrease": {
                 let group = (await BotAPI.getGroup(this, object.group_id!))!;
-                let member = group.getMember(object.user_id!)!;
-                let operator = group.getMember(object.operator_id!)!;
+                let member = (await group.getMember(object.user_id!))!;
+                let operator = (await group.getMember(object.operator_id!))!;
                 this.eventManager.callEvent(new GroupMemberLeftEvent(this, group, member));
                 // 群主离开群聊
                 // 不知道为什么实测这个也不会触发
@@ -380,14 +379,14 @@ export class Bot {
 
                 // 机器人离开群聊
                 if (object.user_id == this.id) {
-                    this.eventManager.callEvent(new GroupSelfLeftEvent(this, group));
+                    this.eventManager.callEvent(await GroupSelfLeftEvent.create(this, group));
                     let str = "离开";
-                    if (object.sub_type == "kick_me") { 
+                    if (object.sub_type == "kick_me") {
                         str = "被踢出";
-                        this.eventManager.callEvent(new GroupSelfKickedEvent(this, group, operator));
+                        this.eventManager.callEvent(await GroupSelfKickedEvent.create(this, group, operator));
                     }
                     this.groups.splice(this.groups.findIndex((g) => g.getId() == group.getId()), 1);
-                    this.options["NoticeLog"] && this.logger.info(`登录号${str} 群聊: ${group.getName()} (${group.getId()})`);
+                    this.options["log"]["notice"] && this.logger.info(`登录号${str} 群聊: ${group.getName()} (${group.getId()})`);
                 }
                 // 成员离开群聊
                 else if (object.sub_type == "leave" || object.sub_type == "kick") {
@@ -397,35 +396,32 @@ export class Bot {
                         str = "被踢出";
                         this.eventManager.callEvent(new GroupMemberKickedEvent(this, group, member, operator));
                     }
-                    if (member.getPermission() == GroupMemberPermission.ADMIN) {
-                        group.getAdmins().splice(group.getAdmins().findIndex((m) => m.getId() == member.getId()), 1);
-                    }
-                    group.getMembers().splice(group.getMembers().findIndex((m) => m.getId() == member.getId()), 1);
-                    this.options["NoticeLog"] && this.logger.info(`[${group.getName()} (${group.getId()})] 成员 ${member.getCard() || member.getNickname} (${member.getId()}) ${str}群聊`);
+                    group.deleteMember(member.getId());
+                    this.options["log"]["notice"] && this.logger.info(`[${group.getName()} (${group.getId()})] 成员 ${member.getCard() || member.getNickname} (${member.getId()}) ${str}群聊`);
                 }
                 break;
             }
             case "group_increase": {
                 let group = (await BotAPI.getGroup(this, object.group_id!))!;
-                let member = group.getMember(object.user_id!)!;
+                let member = (await group.getMember(object.user_id!))!;
                 this.eventManager.callEvent(new GroupMemberJoinedEvent(this, group, member));
                 if (object.user_id == this.id) {
                     this.groups.push(group);
-                    this.eventManager.callEvent(new GroupSelfJoinedEvent(this, group));
-                    this.options["NoticeLog"] && this.logger.info(`登录号加入群聊: ${group.getName()} (${group.getId()}) !`);
+                    this.eventManager.callEvent(await GroupSelfJoinedEvent.create(this, group));
+                    this.options["log"]["notice"] && this.logger.info(`登录号加入群聊: ${group.getName()} (${group.getId()}) !`);
                 } else {
-                    this.options["NoticeLog"] && this.logger.info(`[${group.getName()} (${group.getId()})]加入新成员: ${member.getNickname()} (${member.getId()})`);
+                    this.options["log"]["notice"] && this.logger.info(`[${group.getName()} (${group.getId()})]加入新成员: ${member.getNickname()} (${member.getId()})`);
                 }
                 break;
             }
             case "group_ban": {
                 let group = (await BotAPI.getGroup(this, object.group_id!))!;
-                let operator = group.getMember(object.operator_id!)!;
+                let operator = (await group.getMember(object.operator_id!))!;
                 if (object.user_id == 0) {
                     if (object.sub_type == "ban") this.eventManager.callEvent(new GroupWholeMutedEvent(this, group, operator));
                     else this.eventManager.callEvent(new GroupWholeUnmutedEvent(this, group, operator));
                 } else {
-                    let member = group.getMember(object.user_id!)!;
+                    let member = (await group.getMember(object.user_id!))!;
                     if (object.sub_type == "ban") this.eventManager.callEvent(
                         new GroupMemberMutedEvent(this, group, member, operator, object.duration!)
                     );
@@ -437,8 +433,8 @@ export class Bot {
             }
             case "group_recall": {
                 let group = (await BotAPI.getGroup(this, object.group_id!))!;
-                let member = group.getMember(object.user_id!)!;
-                let operator = group.getMember(object.operator_id!)!;
+                let member = (await group.getMember(object.user_id!))!;
+                let operator = (await group.getMember(object.operator_id!))!;
                 let message = await BotAPI.getMessage(this, object.message_id!);
                 if (!message) return;
                 this.eventManager.callEvent(new GroupMessageRecalledEvent(this, group, member, operator, message));
@@ -461,8 +457,8 @@ export class Bot {
                 if (object.sub_type == "poke") {
                     if (object.group_id) {
                         let group = (await BotAPI.getGroup(this, object.group_id))!;
-                        let sender = group.getMember(object.user_id!)!;
-                        let target = group.getMember(object.target_id!)!;
+                        let sender = (await group.getMember(object.user_id!))!;
+                        let target = (await group.getMember(object.target_id!))!;
                         this.eventManager.callEvent(new GroupPokeEvent(this, group, sender, target));
                     } else {
                         let friend = (await BotAPI.getFriend(this, object.user_id!))!;
@@ -471,20 +467,20 @@ export class Bot {
                 } else switch (object.sub_type as "lucky_king" | "honor" | "title") {
                     case "lucky_king": {
                         let group = (await BotAPI.getGroup(this, object.group_id!))!;
-                        let sender = group.getMember(object.user_id!)!;
-                        let target = group.getMember(object.target_id!)!;
+                        let sender = (await group.getMember(object.user_id!))!;
+                        let target = (await group.getMember(object.target_id!))!;
                         this.eventManager.callEvent(new GroupMemberLuckyKingEvent(this, group, sender, target));
                         break;
                     }
                     case "honor": {
                         let group = (await BotAPI.getGroup(this, object.group_id!))!;
-                        let member = group.getMember(object.user_id!)!;
+                        let member = (await group.getMember(object.user_id!))!;
                         this.eventManager.callEvent(new GroupMemberHonorChangedEvent(this, group, member, object.honor_type!));
                         break;
                     }
                     case "title": {
                         let group = (await BotAPI.getGroup(this, object.group_id!))!;
-                        let member = group.getMember(object.user_id!)!;
+                        let member = (await group.getMember(object.user_id!))!;
                         this.eventManager.callEvent(new GroupMemberTitleChangedEvent(this, group, member, object.title!));
                         break;
                     }
@@ -493,7 +489,7 @@ export class Bot {
             }
             case "group_card": {
                 let group = (await BotAPI.getGroup(this, object.group_id!))!;
-                let member = group.getMember(object.user_id!)!;
+                let member = (await group.getMember(object.user_id!))!;
                 this.eventManager.callEvent(new GroupMemberCardChangedEvent(this, group, member, object.card_new!, object.card_old!));
                 break;
             }
@@ -517,8 +513,8 @@ export class Bot {
             case "essence": {
                 let group = await BotAPI.getGroup(this, object.group_id!);
                 if (!group) return;
-                let sender = group.getMember(object.user_id!)!;
-                let operator = group.getMember(object.operator_id!)!;
+                let sender = (await group.getMember(object.user_id!))!;
+                let operator = (await group.getMember(object.operator_id!))!;
                 let message = await BotAPI.getMessage(this, object.message_id!);
                 if (!message) return;
                 this.eventManager.callEvent(new GroupEssenceMessageChangedEvent(this, group, sender, operator, message, object.sub_type!));
@@ -585,8 +581,10 @@ export class Bot {
                 break;
             }
         }
-
     }
+
+    public getProcess() { return this.process; }
+    public setProcess(id: string, fun: (data: ReturnData) => void) { this.process.set(id, fun); }
 
     public getId() { return this.id; }
     public getName() { return this.name; }
@@ -605,7 +603,7 @@ export class BotAPI {
 
     private static logger = new Logger("BotAPI");
 
-    private static _sendRequest(bot: Bot, type: string, params: Params, fun: (data: ReturnData) => void) {
+    private static async _sendRequest(bot: Bot, type: string, params: Params, fun: (data: Params) => void) {
         let fun0 = fun;
         let id = Math.random().toString(16).slice(2);
         let content = JSON.stringify({
@@ -614,15 +612,15 @@ export class BotAPI {
             "echo": id
         });
         let err = new Error("Error Stack");
-        fun = (obj) => {
-            if (obj.msg != null) {
-                BotAPI.logger.error(`API [${type}] 调用错误回执: ${obj.msg}(${obj.wording})`);
-                if (obj.msg != "API_ERROR") {
+        fun = (object) => {
+            if (object.msg) {
+                BotAPI.logger.error(`API [${type}] 调用错误回执: ${object.msg}(${object.wording})`);
+                if (object.msg != "API_ERROR") {
                     this.logger.errorPrint(
                         // name
                         `Use_OneBot_Websocket_API: ${type}`,
-                        // message
-                        `${obj.msg}(${obj.wording!})`,
+                        // msg
+                        `${object.msg}(${object.wording!})`,
                         // data
                         `发送数据:\n\`\`\`json${content}\n\`\`\`\n\n调用堆栈:\n\`\`\`txt\n${err.stack}\n\`\`\``
                     );
@@ -630,7 +628,7 @@ export class BotAPI {
                     this.logger.warn(`API异常! 请检查 OneBot 状况!`);
                 }
             }
-            fun0(obj);
+            fun0(object);
         };
         if (bot.isClosing() || bot.getWebSocket().getClient().readyState != bot.getWebSocket().getClient().OPEN) {
             let info = "Websocket连接未建立! 无法发起请求!";
@@ -643,14 +641,14 @@ export class BotAPI {
             });
             return;
         }
+        bot.setProcess(id, fun);
         bot.getWebSocket().send(content);
     }
 
-    private static _sendRequestProcess(bot: Bot, type: string, params: Params = {}) {
-        let process = new Promise<ReturnData>((outMessage, _outError) => {
-            BotAPI._sendRequest(bot, type, params, (fun) => outMessage(fun));
+    private static _sendRequestProcess<T>(bot: Bot, type: string, params: Params = {}) {
+        return new Promise<T | null>((outputData, _outputError) => {
+            BotAPI._sendRequest(bot, type, params, (res) => outputData(res.data));
         });
-        return process;
     }
 
     /**
@@ -659,62 +657,24 @@ export class BotAPI {
      * @param bot 机器人
      * @returns 登陆号信息
      */
-    public static async getLoginInfo(bot: Bot) {
-        let data = (await this._sendRequestProcess(bot, "get_login_info")).data;
-
-        if (data == null) {
-            this.logger.error(`登录号信息获取失败!`);
-            return null;
-        }
-        return {
-            id: data.user_id,
-            nickname: data.nickname
-        };
-    }
-
-    /**
-     * 同步获取登录号信息
-     * @param bot 机器人
-     * @returns 登陆号信息
-     */
-    public static getLoginInfoSync(bot: Bot) {
-        let info: {
-            id: number,
+    public static getLoginInfo(bot: Bot) {
+        return this._sendRequestProcess<{
+            user_id: number,
             nickname: string
-        } | null | undefined;
-        this.getLoginInfo(bot).then((data) => {
-            info = data;
-        });
-        while (undefined === info) { }
-        return info;
+        }>(bot, "get_login_info");
     }
 
     /**
-     * 异步获取陌生人结构对象
+     * 异步获取陌生人结构
      * @async 异步操作
      * @param bot 机器人
      * @param userId 陌生人QQ号
-     * @returns 陌生人结构对象
+     * @returns 陌生人结构
      */
-    public static async getStrangerStruct(bot: Bot, userId: number) {
-        return (await this._sendRequestProcess(bot, "get_stranger_info", {
+    public static getStrangerStruct(bot: Bot, userId: number) {
+        return this._sendRequestProcess<StrangerStruct>(bot, "get_stranger_info", {
             user_id: userId
-        })).data as StrangerStruct | null;
-    }
-
-    /**
-     * 同步获取陌生人结构对象
-     * @param bot 机器人
-     * @param userId 陌生人QQ号
-     * @returns 陌生人结构对象
-     */
-    public static getStrangerStructSync(bot: Bot, userId: number) {
-        let stranger: StrangerStruct | null | undefined;
-        this.getStrangerStruct(bot, userId).then((data) => {
-            stranger = data;
         });
-        while (undefined === stranger) { }
-        return stranger;
     }
 
     /**
@@ -732,29 +692,51 @@ export class BotAPI {
     }
 
     /**
-     * 同步获取陌生人对象
+     * 异步获取好友结构
+     * @async 异步操作
      * @param bot 机器人
-     * @param userId 陌生人QQ号
-     * @returns 陌生人对象
+     * @param userId 好友QQ号
+     * @returns 好友结构
      */
-    public static getStrangerSync(bot: Bot, userId: number) {
-        let stranger: Stranger | null | undefined;
-        this.getStranger(bot, userId).then((data) => {
-            stranger = data;
+    public static getFriendStruct(bot: Bot, userId: number) {
+        return this._sendRequestProcess<FriendStruct>(bot, "get_friend_info", {
+            user_id: userId
         });
-        while (undefined === stranger) { }
-        return stranger;
     }
 
     /**
-     * 获取好友列表
+     * 异步获取好友对象
+     * @async 异步操作
+     * @param bot 机器人
+     * @param userId 好友QQ号
+     * @returns 好友对象
+     */
+    public static async getFriend(bot: Bot, userId: number) {
+        let friend = await this.getFriendStruct(bot, userId);
+        if (friend != null) {
+            return new Friend(bot, friend);
+        } else return null;
+    }
+
+    /**
+     * 异步获取好友结构列表
+     * @async 异步操作
+     * @param bot 机器人
+     * @returns 好友结构列表
+     */
+    public static getFriendStructs(bot: Bot) {
+        return this._sendRequestProcess<Array<FriendStruct>>(bot, "get_friend_list");
+    }
+
+    /**
+     * 异步获取好友列表
+     * @async 异步操作
      * @param bot 机器人
      * @returns 好友列表
      */
     public static async getFriends(bot: Bot) {
-        let data = (await this._sendRequestProcess(bot, "get_friend_list")).data as FriendStruct[] | null;
-
-        if (data != null) {
+        let data = await this.getFriendStructs(bot);
+        if (data) {
             let friends = new Array<Friend>();
             data.forEach((friendData) => friends.push(
                 new Friend(bot, friendData)
@@ -764,85 +746,48 @@ export class BotAPI {
     }
 
     /**
-     * 同步获取好友列表
-     * @param bot 机器人
-     * @returns 好友列表
-     */
-    public static getFriendsSync(bot: Bot) {
-        let friends: Array<Friend> | null = [];
-        this.getFriends(bot).then((data) => {
-            friends = data;
-        });
-        while (friends.length == 0) { }
-        return friends;
-    }
-
-    /**
-     * 异步获取实时好友结构对象
+     * 异步获取群聊结构
      * @async 异步操作
      * @param bot 机器人
-     * @param userId 好友QQ号
-     * @returns 好友结构对象
+     * @param groupId 群聊号
+     * @returns 群聊结构
      */
-    public static async getFriendStruct(bot: Bot, userId: number) {
-        return (await this._sendRequestProcess(bot, "get_friend_info", {
-            user_id: userId
-        })).data as FriendStruct | null;
-    }
-
-    /**
-     * 同步获取实时好友结构对象
-     * @param bot 机器人
-     * @param userId 好友QQ号
-     * @returns 好友结构对象
-     */
-    public static getFriendStructSync(bot: Bot, userId: number) {
-        let friend: FriendStruct | null | undefined;
-        this.getFriendStruct(bot, userId).then((data) => {
-            friend = data;
+    public static getGroupStruct(bot: Bot, groupId: number) {
+        return this._sendRequestProcess<GroupStruct>(bot, "get_group_info", {
+            group_id: groupId
         });
-        while (undefined === friend) { }
-        return friend;
     }
 
     /**
-     * 获取实时好友对象数据
+     * 异步获取群聊对象
      * @param bot 机器人
-     * @param userId 好友QQ号
-     * @returns 好友对象
+     * @param groupId 群聊号
+     * @returns 群聊对象
      */
-    public static async getFriend(bot: Bot, userId: number) {
-        let friends = await this.getFriends(bot);
-        if (friends != null) {
-            for (const friend of friends) {
-                if (friend.getId() == userId) return friend;
-            }
-        }
-        return null;
+    public static async getGroup(bot: Bot, groupId: number) {
+        let data = await this.getGroupStruct(bot, groupId);
+        if (data != null) {
+            return new Group(bot, data);
+        } else return null;
     }
 
     /**
-     * 同步获取实时好友对象数据
+     * 异步获取群聊结构列表
      * @param bot 机器人
-     * @param userId 好友QQ号
-     * @returns 好友对象
+     * @returns 群聊结构列表
      */
-    public static getFriendSync(bot: Bot, userId: number) {
-        let friend: Friend | null | undefined;
-        this.getFriend(bot, userId).then((data) => {
-            friend = data;
-        });
-        while (undefined === friend) { }
-        return friend;
+    public static getGroupStructs(bot: Bot) {
+        return this._sendRequestProcess<Array<GroupStruct>>(bot, "get_group_list");
     }
 
     /**
-     * 获取群聊列表
+     * 异步获取群聊列表
+     * @async 异步操作
      * @param bot 机器人
      * @returns 群聊列表
      */
     public static async getGroups(bot: Bot) {
-        let data = (await this._sendRequestProcess(bot, "get_group_list")).data as GroupStruct[] | null;
+        let data = await this.getGroupStructs(bot);
         if (data != null) {
             let groups = new Array<Group>();
             data.forEach((groupData) => groups.push(
@@ -853,176 +798,91 @@ export class BotAPI {
     }
 
     /**
-     * 同步获取群聊列表
+     * 异步获取群聊成员结构
+     * @async 异步操作
      * @param bot 机器人
-     * @returns 群聊列表
+     * @param groupId 群聊号
+     * @param userId 成员QQ号
+     * @returns 群聊成员结构
      */
-    public static getGroupsSync(bot: Bot) {
-        let groups: Array<Group> | null = [];
-        this.getGroups(bot).then((data) => {
-            groups = data;
+    public static getGroupMemberStruct(bot: Bot, groupId: number, userId: number) {
+        return this._sendRequestProcess<GroupMemberStruct>(bot, "get_group_member_info", {
+            group_id: groupId,
+            user_id: userId
         });
-        while (groups.length == 0) { }
-        return groups;
     }
 
     /**
-     * 获取实时群聊对象数据
+     * 异步获取群聊成员对象
+     * @async 异步操作
      * @param bot 机器人
+     * @param groupId 群聊号
+     * @param userId 成员QQ号
+     * @returns 群聊成员对象
      */
-    public static async getGroup(bot: Bot, groupId: number) {
-        let data = (await this._sendRequestProcess(bot, "get_group_info", {
-            group_id: groupId
-        })).data as GroupStruct | null;
+    public static async getGroupMember(bot: Bot, groupId: number, userId: number) {
+        let data = await this.getGroupMemberStruct(bot, groupId, userId);
         if (data != null) {
-            return new Group(bot, data);
+            return await GroupMember.create(bot, data);
         } else return null;
     }
 
     /**
-     * 同步获取实时群聊对象数据
+     * 异步获取群聊成员结构列表
+     * @async 异步操作
      * @param bot 机器人
      * @param groupId 群聊号
-     * @returns 群聊对象
+     * @returns 群聊成员结构列表
      */
-    public static getGroupSync(bot: Bot, groupId: number) {
-        let group: Group | null | undefined;
-        this.getGroup(bot, groupId).then((data) => {
-            group = data;
+    public static getGroupMemberStructs(bot: Bot, groupId: number) {
+        return this._sendRequestProcess<Array<GroupMemberStruct>>(bot, "get_group_member_list", {
+            group_id: groupId,
         });
-        while (undefined === group) { }
-        return group;
     }
 
     /**
-     * 获取群聊实时成员列表
+     * 异步获取群聊成员对象列表
+     * @async 异步操作
      * @param bot 机器人
      * @param groupId 群聊号
-     * @returns 成员列表
+     * @returns 群聊成员对象列表
      */
     public static async getGroupMembers(bot: Bot, groupId: number) {
-        let data = (await this._sendRequestProcess(bot, "get_group_member_list", {
-            group_id: groupId
-        })).data as GroupMemberStruct[] | null;
-        let members = new Array<GroupMember>();
+        let data = await this.getGroupMemberStructs(bot, groupId);
         if (data != null) {
-            data.forEach(async (memberData) => members.push(
-                new GroupMember(bot, memberData)
-            ));
-        }
-        return members;
+            let members = new Array<GroupMember>();
+            for (let memberData of data) {
+                members.push(await GroupMember.create(bot, memberData));
+            }
+            return members;
+        } else return null;
     }
 
     /**
-     * 同步获取群聊实时成员列表
-     * @param bot 机器人
-     * @param groupId 群聊号
-     * @returns 成员列表
-     */
-    public static getGroupMembersSync(bot: Bot, groupId: number) {
-        let members: Array<GroupMember> | null = [];
-        this.getGroupMembers(bot, groupId).then((data) => {
-            members = data;
-        });
-        while (members.length == 0) { }
-        return members;
-    }
-
-    /**
-     * 异步获取实时群聊成员对象数据
-     * @async 异步操作
-     * @param bot 机器人
-     * @param groupId 群聊号
-     * @param userId 成员QQ号
-     * @returns 成员对象
-     */
-    public static async getGroupMemberStruct(bot: Bot, groupId: number, userId: number) {
-        return (await this._sendRequestProcess(bot, "get_group_member_info", {
-            group_id: groupId,
-            user_id: userId
-        })).data as GroupMemberStruct | null;
-    }
-
-    /**
-     * 同步获取实时群聊成员对象数据
-     * @param bot 机器人
-     * @param groupId 群聊号
-     * @param userId 成员QQ号
-     * @returns 成员对象
-     */
-    public static getGroupMemberStructSync(bot: Bot, groupId: number, userId: number) {
-        let member: GroupMemberStruct | null | undefined;
-        this.getGroupMemberStruct(bot, groupId, userId).then((data) => {
-            member = data;
-        });
-        while (undefined === member) { }
-        return member;
-    }
-
-    /**
-     * 获取实时群聊成员对象数据
-     * @param bot 机器人
-     * @param groupId 群聊号
-     * @param userId 成员QQ号
-     * @returns 成员对象
-     */
-    public static async getGroupMember(bot: Bot, groupId: number, userId: number) {
-        let data = (await this._sendRequestProcess(bot, "get_group_member_info", {
-            group_id: groupId,
-            user_id: userId
-        })).data as GroupMemberStruct | null;
-        if (data != null) {
-            return new GroupMember(bot, data);
-        }
-        return null;
-    }
-
-    /**
-     * 同步获取实时群聊成员对象数据
-     * @param bot 机器人
-     * @param groupId 群聊号
-     * @param userId 成员QQ号
-     * @returns 成员对象
-     */
-    public static getGroupMemberSync(bot: Bot, groupId: number, userId: number) {
-        let member: GroupMember | null | undefined;
-        this.getGroupMember(bot, groupId, userId).then((data) => {
-            member = data;
-        });
-        while (undefined === member) { }
-        return member;
-    }
-
-    /**
-     * 异步获取消息
+     * 异步获取消息结构
      * @async 异步操作
      * @param bot 机器人
      * @param messageId 消息ID
-     * @returns 消息结构对象
+     * @returns 消息结构
+     */
+    public static getMessageStruct(bot: Bot, messageId: number) {
+        return this._sendRequestProcess<MessageChainStruct>(bot, "get_msg", {
+            message_id: messageId
+        });
+    }
+
+    /**
+     * 异步获取消息对象
+     * @async 异步操作
+     * @param bot 机器人
+     * @param messageId 消息ID
+     * @returns 消息对象
      */
     public static async getMessage(bot: Bot, messageId: number) {
-        let data = (await this._sendRequestProcess(bot, "get_msg", {
-            message_id: messageId
-        })).data as MessageChainStruct | null;
+        let data = await this.getMessageStruct(bot, messageId);
         if (data != null) {
             return new MessageChain(bot, data);
-        }
-        return null;
-    }
-
-    /**
-     * 同步获取消息
-     * @param bot 机器人
-     * @param messageId 消息ID
-     * @returns 消息结构对象
-     */
-    public static getMessageSync(bot: Bot, messageId: number) {
-        let message: MessageChain | null | undefined;
-        this.getMessage(bot, messageId).then((data) => {
-            message = data;
-        });
-        while (undefined === message) { }
-        return message;
+        } else return null;
     }
 
     /**
@@ -1060,7 +920,7 @@ export class BotAPI {
             let data = str.substring((4 + name.length), (str.length - 1));
             if (!!data) { data = data.substring(1); }
             name = name[0].toUpperCase() + name.substring(1);
-            string = string.substring(0, CQCodeIndex) + `§d[${await fun(name, BotAPI.objectifyCQCode(data))}]§r` + string.substring(CCLIndex);
+            string = string.substring(0, CQCodeIndex) + `§6[${await fun(name, BotAPI.objectifyCQCode(data))}§6]§r` + string.substring(CCLIndex);
             CQCodeIndex = string.indexOf("[CQ:");
         }
         return string;

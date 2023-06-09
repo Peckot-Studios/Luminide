@@ -7,9 +7,9 @@ int main()
     if (access("node_modules", F_OK) != 0)
     {
         string choice = "y";
-        cout << "Requirement Not Found!" << endl;
-        cout << "Make sure you`re installed node.js and npm!" << endl;
-        cout << "Do you want to install requirement?(Y/n)" << endl;
+        cout << "错误：未找到依赖！" << endl;
+        cout << "请确保已经安装 Node.js 和 npm 依赖！" << endl;
+        cout << "启动自动安装依赖？(Y/n)" << endl;
         cin >> choice;
         if (choice == "n")
         {
@@ -17,14 +17,14 @@ int main()
         }
         else
         {
-            cout << "Installing..." << endl;
+            cout << "正在安装…" << endl;
             system("npm i");
         };
     }
     else
     {
-        cout << "Requirement Found!" << endl;
-        cout << "Starting Luminide Bot..." << endl;
+        cout << "检测到依赖文件!" << endl;
+        cout << "正在启动Luminide…" << endl;
         system("node App.js");
     }
 

@@ -1,5 +1,5 @@
 import { Bot, BotAPI } from "../../hooks/Bot";
-import { Stranger } from "../sender/Stranger";
+import { Stranger, StrangerStruct } from "../sender/Stranger";
 import { Group } from "./Group";
 import { GroupMemberPermission } from "./GroupMemberPermission";
 
@@ -28,40 +28,41 @@ export type GroupMemberStruct = {
  */
 export class GroupMember extends Stranger {
 
-    private group: Group;
+    public static async create(
+        bot: Bot,
+        groupMember: GroupMemberStruct
+    ) {
+        let group = await BotAPI.getGroup(bot, groupMember.group_id);
+        let stranger = await BotAPI.getStrangerStruct(bot, groupMember.user_id);
+        if (group && stranger) return new GroupMember(bot, stranger, groupMember, group);
+        else throw new Error(`群聊成员 ${groupMember.nickname}(${groupMember.user_id}) 初始化失败!`);
+    }
 
     constructor(
         bot: Bot,
-        private groupMember: GroupMemberStruct
-    ) {
-        super(bot, (() => {
-            let stranger = BotAPI.getStrangerStructSync(bot, groupMember.user_id);
-            if (stranger) return stranger;
-            else throw new Error(`群聊成员 ${groupMember.nickname}(${groupMember.user_id}) 初始化失败!`);
-        })());
-        let group = BotAPI.getGroupSync(bot, groupMember.group_id);
-        if (group) this.group = group;
-        else throw new Error(`群聊成员 ${this.getNickname()}(${this.getId()}) 初始化失败!`);
-    }
+        stranger: StrangerStruct,
+        private member: GroupMemberStruct,
+        private group: Group,
+    ) { super(bot, stranger); }
 
     public getGroup() { return this.group; }
 
-    public isUnfriendly() { return this.groupMember.unfriendly; }
-    public isCardChangeable() { return this.groupMember.card_changeable; }
-    public getCard() { return this.groupMember.card; }
-    public getPermission() { return GroupMemberPermission.valueOf(this.groupMember.role); }
-    public getArea() { return this.groupMember.area; }
-    public getTitle() { return this.groupMember.title; }
-    public getJoinTimestamp() { return this.groupMember.join_time; }
-    public getLastSpeakTimestamp() { return this.groupMember.last_sent_time; }
-    public getTitleExpireTimestamp() { return this.groupMember.title_expire_time; }
-    public getUnmuteTimestamp() { return this.groupMember.shut_up_timestamp; }
+    public isUnfriendly() { return this.member.unfriendly; }
+    public isCardChangeable() { return this.member.card_changeable; }
+    public getCard() { return this.member.card; }
+    public getPermission() { return GroupMemberPermission.valueOf(this.member.role); }
+    public getArea() { return this.member.area; }
+    public getTitle() { return this.member.title; }
+    public getJoinTimestamp() { return this.member.join_time; }
+    public getLastSpeakTimestamp() { return this.member.last_sent_time; }
+    public getTitleExpireTimestamp() { return this.member.title_expire_time; }
+    public getUnmuteTimestamp() { return this.member.shut_up_timestamp; }
 
     public async refresh() {
         let data = await BotAPI.getGroupMemberStruct(this.getBot(), this.getGroup().getId(), this.getId());
-        if (data) this.groupMember = data;
+        if (data) this.member = data;
     }
 
-    override toString() { return `<Class::${this.constructor.name}>\n${JSON.stringify(this.groupMember)}`; }
+    override toString() { return `<Class::${this.constructor.name}>\n${JSON.stringify(this.member)}`; }
 
 }

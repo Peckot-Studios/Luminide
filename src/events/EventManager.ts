@@ -89,7 +89,7 @@ export class EventManager {
         handler: (event: T) => void | Promise<void>,
         priority: EventPriority = EventPriority.NORMAL
     ) {
-        if (!this.eventHandlers.get(event)) {
+        if (!this.eventHandlers.has(event)) {
             this.eventHandlers.set(event, []);
         }
         const handlers = this.eventHandlers.get(event)!;

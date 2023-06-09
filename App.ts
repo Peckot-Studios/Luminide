@@ -1,34 +1,38 @@
+import axios from "axios";
 import { BotManager } from "./src/hooks/BotManager";
 import { JsonConfigFileClass } from "./src/utils/DataUtils";
 import { Logger } from "./src/entities/system/Logger";
 import { PluginLoader } from "./src/plugins/PluginLoader";
 
-let Logo = String.raw`
+let logo = String.raw`
    __                _        _     __
   / /  __ __ __ _   (_)___   (_)___/ /___
  / /__/ // //  ' \ / // _ \ / // _  // -_)
 /____/\_,_//_/_/_//_//_//_//_/ \_,_/ \__/
-
 `;
 
 let logger = new Logger("Luminide");
 
-export let Version = {
-    "version": [1, 0, 2],
-    "isRemake": true,
-    "isBeta": false,
-    "isDebug": false
+export let version = {
+    code: [1, 0, 2],
+    alhpa: true,
+    beta: false
 };
 
-let Config = new JsonConfigFileClass("./config/config.json", JSON.stringify({
-    "RoBot": {
-        "Websocket": "ws://127.0.0.1:5555",
-        "ReConnectCount": 5,
-        "ReConnectTime": 4,
-        "MsgLog": true,
-        "NoticeLog": true,
-        "LogFile": "luminlog-{Y}{M}{D}.log",
-        "ChannelSystem": false
+let config = new JsonConfigFileClass("./config.json", JSON.stringify({
+    Bot: {
+        debug: false,
+        websocket: {
+            address: "ws://localhost:5555",
+            reconnect: 5,
+            reconnect_time: 4
+        },
+        log: {
+            file: "luminide-{Y}{M}{D}.log",
+            message: true,
+            notice: true,
+        },
+        //"ChannelSystem": false
     }
 }, null, 2));
 
@@ -53,43 +57,45 @@ async function loadPlugins() {
 }
 
 async function load() {
-    logger.info(Logo);
-    logger.info(`正在初始化 Luminide Bot...`);
-    logger.info(`开始批量连接 OneBot...`);
-    let keys = Config.getKeys(), l = keys.length, i = 0;
+    logger.info(`§6${logo}`);
+    logger.info(`正在初始化 Luminide…`);
+    logger.info(`开始批量连接 OneBot…`);
+    let keys = config.getKeys(), l = keys.length, i = 0;
     // console.log(conf.read())
     while (i < l) {
         let name = keys[i++];
         // console.log(name)
         try {
-            let obj = Config.get(name);
-            let ws = obj["Websocket"],
-                reConnCount = obj["ReConnectCount"],
-                reConnTime = obj["ReConnectTime"];
-            if (ws.indexOf("ws://") != 0) {
-                throw new Error(`Websocket连接必须以 [ws://] 开头!`);
-            } else if (typeof (reConnCount) != "number") {
-                throw new Error(`ReConnectCount(重连次数)参数必须为数字!`);
-            } else if (typeof (reConnTime) != "number") {
-                throw new Error(`ReConnectTime(重连时间)参数必须为数字!`);
-            } else if (typeof (obj["MsgLog"]) != "boolean") {
-                throw new Error(`MsgLog(消息日志开关)参数必须为布尔!`);
-            } else if (typeof (obj["NoticeLog"]) != "boolean") {
-                throw new Error(`NoticeLog(通知日志开关)参数必须为布尔!`);
-            } else if (typeof (obj["LogFile"]) != "string" && obj["LogFile"] != null) {
-                throw new Error(`LogFile(日志文件)参数必须为字符串或者null!`);
-            } else if (typeof (obj["ChannelSystem"]) != "boolean") {
-                throw new Error(`ChannelSystem(频道系统)参数必须为布尔!`);
+            let options = config.get(name);
+            let websocket = options["websocket"]["address"],
+                reconnect = options["websocket"]["reconnect"],
+                reconnectTime = options["websocket"]["reconnect_time"];
+            if (websocket.indexOf("ws://") != 0) {
+                throw new Error(`WebSocket连接地址必须以 [ws://] 开头!`);
+            } else if (typeof (reconnect) != "number") {
+                throw new Error(`配置 websocket.reconnect 应为整数!`);
+            } else if (typeof (reconnectTime) != "number") {
+                throw new Error(`配置 websocket.reconnect_time 应为整数!`);
+            } else if (typeof (options["log"]["message"]) != "boolean") {
+                throw new Error(`配置 log.message 应为布尔值!`);
+            } else if (typeof (options["log"]["notice"]) != "boolean") {
+                throw new Error(`配置 log.notice 应为布尔值!`);
+            } else if (typeof (options["log"]["file"]) != "string" && options["log"]["file"] != null) {
+                throw new Error(`配置 log.file 应为字符串或 null!`);
             }
-            await BotManager.newBot(name, ws, reConnCount, reConnTime, obj);
+            // else if (typeof (options["ChannelSystem"]) != "boolean") {
+            //     throw new Error(`配置 ChannelSystem 应为布尔值!`);
+            // }
+            await BotManager.newBot(name, websocket, reconnect, reconnectTime, options);
         } catch (e) {
             logger.error(`连接 [${name}] 失败!`);
             logger.error((e as Error).stack);
+            return;
         }
     }
     await loadPlugins();
-    logger.info('>> §6Luminide §rBot Started!');
-    logger.info(`>> §eVersion: §r${Version.version.join(".")}remake`);
-    logger.info(`>> §e${await fetch("https://v1.hitokoto.cn/?encode=text")}`);
+    logger.info('>> §6Luminide §f启动成功!');
+    logger.info(`>> §e当前版本: §f${version.code.join(".")}-${version.alhpa ? "§dAlpha" : version.beta ? "§3Beta" : "§eRelease"}`);
+    logger.info(`>> §7『 ${Math.random() <= 0.1 ? (await axios.get("https://v1.hitokoto.cn/?encode=text")).data : "代码跑起来我们再聊。"} 』`);
 }
 load();

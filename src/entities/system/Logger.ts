@@ -2,7 +2,7 @@ import * as process from "process";
 import * as fs from "fs";
 import * as path from "path";
 import { FileClass } from "../../utils/FileUtils";
-import { Version } from "../../../App";
+import { version } from "../../../App";
 // import { ServerPlayer } from "bdsx/bds/player";
 // import { bedrockServer } from "bdsx/launcher";
 // import { TextPacket } from "bdsx/bds/packets";
@@ -77,7 +77,7 @@ function mkdirSync(dirname: string) {
 }
 
 export enum LoggerLevel {
-    Slient, Fatal, Error, Warn, Info, Debug
+    SILENT, FATAL, ERROR, WARN, INFO, DEBUG
 }
 
 function ReplaceDate(str: string) {
@@ -120,34 +120,34 @@ export class Logger {
         this.#Config.Console = { "level": level, "Enable": true };
         this.#Config.File = { "level": level, "path": "" };
         this.#LogOp = (type: LoggerLevel, text: string) => {
-            var NowDateStr = DateToString(new Date());
-            var color: string = "38;2;255;255;255";
-            var plColor: string = "";
-            var typeStr: string = "";
+            var dateString = DateToString(new Date());
+            var typeColor: string = "38;2;255;255;255";
+            var typeString: string = "";
+            var lineColor: string = "";
             switch (type) {
-                case LoggerLevel.Slient: typeStr = "Slient"; return;//不可能
-                case LoggerLevel.Fatal: typeStr = "FATAL"; color = "38;2;255;0;0"; plColor = "§4"; break;
-                case LoggerLevel.Error: typeStr = "ERROR"; color = "38;2;239;46;46"; plColor = "§c"; break;
-                case LoggerLevel.Warn: typeStr = "WARN"; color = "38;2;255;255;0"; plColor = "§e"; break;
-                case LoggerLevel.Info: typeStr = "INFO"; color = "38;2;255;255;255"; plColor = "§f"; break;
-                case LoggerLevel.Debug: typeStr = "DEBUG"; color = "1;38;2;0;255;255"; plColor = "§o"; break;
+                case LoggerLevel.SILENT: typeString = "SILENT"; return;
+                case LoggerLevel.FATAL: typeString = "FATL"; typeColor = "38;2;255;0;0"; lineColor = "§4"; break;
+                case LoggerLevel.ERROR: typeString = "ERRR"; typeColor = "38;2;239;46;46"; lineColor = "§c"; break;
+                case LoggerLevel.WARN: typeString = "WARN"; typeColor = "38;2;255;255;0"; lineColor = "§e"; break;
+                case LoggerLevel.INFO: typeString = "INFO"; typeColor = "38;2;255;255;255"; lineColor = "§f"; break;
+                case LoggerLevel.DEBUG: typeString = "DEBG"; typeColor = "1;38;2;0;255;255"; lineColor = "§o"; break;
             }
             var NoColorLogStr: string = AutoReplace("[{} {}] {} {}",
-                NowDateStr, typeStr,
+                dateString, typeString,
                 (this.#Title == "" ? "" : AutoReplace("[{}]", this.#Title)),
                 text
             );
             var ColorLogStr: string = AutoReplace("{}{} {}{} {}{} {}{}",
-                getColor("38", "2", "173", "216", "230"),//TimeColor
-                NowDateStr.split(" ")[1],//Time
-                getColor((type == LoggerLevel.Info ? "38;2;0;170;170" : color)),//TypeColor
-                typeStr,//Type
-                getColor(color),//Msg Color
-                (this.#Title != "" ? `[${this.#Title}]` : ""),//Title
-                text,//Msg
-                getColor("0")//Clear
+                getColor("38", "2", "173", "216", "230"), // 时间颜色
+                dateString.split(" ")[1], // 时间
+                getColor((type == LoggerLevel.INFO ? "38;2;0;170;170" : typeColor)), // 日志级别颜色
+                typeString, // 日志级别
+                getColor(typeColor), // 日志颜色
+                (this.#Title != "" ? `[${this.#Title}]` : ""), // 日志头
+                text, // 日志内容
+                getColor("0") // 重置颜色
             );
-            var OutputConsoleFunc: () => void = () => {
+            var consolePrint: () => void = () => {
                 if (type <= this.#Config.Console.level) {
                     let consoleLog = ColorLogStr;
                     let keys = Object.keys(Colors), l = keys.length, i = 0;
@@ -163,9 +163,9 @@ export class Logger {
                 }
             };
             if (this.#isSyncOutput) {
-                OutputConsoleFunc();
+                consolePrint();
             } else {
-                process.nextTick(OutputConsoleFunc);
+                process.nextTick(consolePrint);
             }
             if (this.#Config.File.path != "" && type <= this.#Config.File.level) {
                 let dirName = path.dirname(this.#Config.File.path);
@@ -224,27 +224,27 @@ export class Logger {
     //     return true;
     // };
     log(...args: any[]): boolean {
-        this.#LogOp(LoggerLevel.Info, args.join(""));
+        this.#LogOp(LoggerLevel.INFO, args.join(""));
         return true;
     };
     info(...args: any[]): boolean {
-        this.#LogOp(LoggerLevel.Info, args.join(""));
+        this.#LogOp(LoggerLevel.INFO, args.join(""));
         return true;
     };
     debug(...args: any[]): boolean {
-        this.#LogOp(LoggerLevel.Debug, args.join(""));
+        this.#LogOp(LoggerLevel.DEBUG, args.join(""));
         return true;
     };
     warn(...args: any[]): boolean {
-        this.#LogOp(LoggerLevel.Warn, args.join(""));
+        this.#LogOp(LoggerLevel.WARN, args.join(""));
         return true;
     };
     error(...args: any[]): boolean {
-        this.#LogOp(LoggerLevel.Error, args.join(""));
+        this.#LogOp(LoggerLevel.ERROR, args.join(""));
         return true;
     };
     fatal(...args: any[]): boolean {
-        this.#LogOp(LoggerLevel.Fatal, args.join(""));
+        this.#LogOp(LoggerLevel.FATAL, args.join(""));
         return true;
     };
     errorPrint(name: string, msg: string, data: string) {
@@ -254,7 +254,7 @@ export class Logger {
         let txt = [
             `# Luminide 错误日志:`,
             `### 错误时间: ${fileName}`,
-            `### Version: ${Version.version.join(".")}-remake ${Version.isBeta ? "Beta" : ""}`,
+            `### Version: ${version.code.join(".")} ${version.alhpa ? "Alpha" : version.beta ? "Beta" : ""}`,
             `## 错误名称:`, name,
             `## 错误信息:`, msg,
             `## 错误数据:`, data

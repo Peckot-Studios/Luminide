@@ -1,28 +1,24 @@
 import * as fs from "fs";
 import * as path from "path";
-import { Version } from "../../App";
+import { version } from "../../App";
 import { Logger } from "../entities/system/Logger";
 
-
 let standardPath = (() => {
-    let dir = __dirname;
-    dir = (path.dirname(dir));
+    let dir = path.dirname(path.relative("./", process.cwd()));
     // dir = path.join(path.dirname(path.dirname(path.dirname(dir))), "bedrock_server/");
     return dir.replace(/\\/g, "/");
     // return "./"
 })();
 
-
-
-function getStandardPath(path1: string): string | null {
-    path1 = path1.replace(/\\/g, "/");
-    if (path1[1] == ":") {
-        return path1;
+function getStandardPath(filePath: string): string | null {
+    filePath = filePath.replace(/\\/g, "/");
+    if (filePath[1] == ":") {
+        return filePath;
     }
-    if (path1[0] == "." && path1[1] == "/") {
-        return path.join(standardPath, path1.substring(2));
+    if (filePath[0] == "." && filePath[1] == "/") {
+        return path.join(standardPath, filePath.substring(2));
     } else {
-        return path.join(standardPath, path1);
+        return path.join(standardPath, filePath);
     }
 }
 
@@ -64,7 +60,6 @@ function delFile(p: string) {
     }
 }
 
-
 const copy = (sd: string, td: string) => {
     // 读取目录下的文件，返回文件名及文件类型{name: 'xxx.txt, [Symbol(type)]: 1 }
     const sourceFile = fs.readdirSync(sd, { withFileTypes: true })
@@ -89,22 +84,20 @@ const copy = (sd: string, td: string) => {
 //   链接：https://juejin.cn/post/7050841255047069703
 //   来源：稀土掘金
 
-
-
 export class FileClass {
     constructor() { };
     static getStandardPath(str: string) {
         return getStandardPath(str);
     }
-    static readFrom(path1: string) {
-        let ph = getStandardPath(path1);
-        if (ph == null) { throw new Error(`FileClass::ReadFrom: 无法获取标准路径<${path1}>`); }
-        if (Version.isDebug) {
-            new Logger("FileClass").info("Debug: " + ph);
+    static readFrom(filePath: string) {
+        let stdPath = getStandardPath(filePath);
+        if (stdPath == null) { throw new Error(`FileClass::ReadFrom: 无法获取标准路径<${filePath}>`); }
+        if (version.alhpa) {
+            new Logger("FileClass").info("Alpha: " + stdPath);
         }
-        mkdirSync(path.dirname(ph));
+        mkdirSync(path.dirname(stdPath));
         let res: string | null = null;
-        try { res = fs.readFileSync(ph, { "flag": "r" }).toString(); } catch (_) { }
+        try { res = fs.readFileSync(stdPath, { "flag": "r" }).toString(); } catch (_) { }
         return res;
     }
     static writeTo(path1: string, content: string) {

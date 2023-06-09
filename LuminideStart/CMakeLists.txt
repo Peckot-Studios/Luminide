@@ -1,2 +1,2 @@
 project(LuminideStart)
-add_executable(LuminideStart src/main.cpp)
+add_executable(LuminideStart main.cpp)

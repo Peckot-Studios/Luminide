@@ -1,4 +1,4 @@
-name: "Release"
+name: Release
 on: # rebuild any PRs and main branch changes
   workflow_dispatch:
   push:
@@ -7,51 +7,57 @@ on: # rebuild any PRs and main branch changes
 
 jobs:
   build: # make sure build/ci work properly
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-lastest
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 1
-      - name: Install Requirements
+      - name: 安装程序依赖
         run: |
           npm i
           npm install typescript
-      - name: Build Luminide
+      - name: 构建主程序
         run: |
           mkdir Luminide
           tsc --outDir ./Luminide/ -watch false
-      - name: Copy Files
+      - name: 复制附属文件
         run: |
-          cp LuminideStart.exe ./Luminide/
           cp package.json ./Luminide/
-      - name: Build Linux Startup Files
+          cp config.json ./Luminide/
+      - name: 构建启动程序
         run: |
           mkdir build
           cd build
           cmake ../LuminideStart/
+          cmake --build .
           make -j 4
-      - name: Pack Release
+          cd ..
+      - name: 复制启动文件
+        run: |
+          cp ./build/LuminideStart ./Luminide/
+          cp ./build/LuminideStart.exe ./Luminide/
+      - name: 打包文件
         id: pack
         working-directory: ${{ env.GITHUB_WORKSPACE }}
         run: |
           cd Luminide
           7z a Luminide-Release.zip -r
-      - name: Get version
+      - name: 获取版本号
         id: version
         uses: notiz-dev/github-action-json-property@release
         with:
-          path: "package.json"
-          prop_path: "version"
-      - name: Upload Luminide
+          path: package.json
+          prop_path: version
+      - name: 上传工件
         uses: actions/upload-artifact@v3.1.0
         with:
           name: Luminide
           path: ./Luminide/
-      - name: Release
+      - name: 发布程序
         uses: softprops/action-gh-release@v1
         with:
-          body_path: ${{ github.workspace }}/Release-Description.md
-          tag_name: v${{steps.version.outputs.prop}}
+          body_path: ${{ github.workspace }}/.github/Release-Description.md
+          tag_name: v${{ steps.version.outputs.prop }}
           token: ${{ secrets.RELEASE_TOKEN }}
           files: |
             ./Luminide/Luminide-Release.zip

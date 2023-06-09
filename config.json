@@ -1,0 +1,15 @@
+{
+  "LuminideBot": {
+    "debug": false,
+    "websocket": {
+      "address": "ws://localhost:5555",
+      "reconnect": 5,
+      "reconnect_time": 4
+    },
+    "log": {
+      "file": "luminide-{Y}{M}{D}.log",
+      "message": true,
+      "notice": true
+    }
+  }
+}

@@ -24,13 +24,7 @@ export class Friend extends Stranger {
     constructor(
         bot: Bot,
         private friend: FriendStruct
-    ) {
-        super(bot, (() => {
-            let sender = BotAPI.getStrangerStructSync(bot, friend.user_id);
-            if (sender) return sender;
-            else throw new Error(`好友 ${friend.nickname}(${friend.user_id}) 初始化失败!`);
-        })());
-    }
+    ) { super(bot, friend); }
 
     public getRemark() { return this.friend.remark; }
 

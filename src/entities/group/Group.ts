@@ -21,21 +21,14 @@ export type GroupStruct = {
  */
 export class Group {
 
-    private owner: GroupMember;
-    private admins: Array<GroupMember>;
-    private members: Array<GroupMember>;
+    private owner: GroupMember | undefined;
+    private admins = new Array<GroupMember>();
+    private members = new Array<GroupMember>();
 
     constructor(
         private bot: Bot,
-        private group: GroupStruct
-    ) {
-        // 初始化
-        this.members = BotAPI.getGroupMembersSync(this.bot, this.getId());
-        this.admins = this.members.filter((member) => member.getPermission() == GroupMemberPermission.ADMIN);
-        let owner = this.members.find((member) => member.getPermission() == GroupMemberPermission.OWNER);
-        if (owner) this.owner = owner;
-        else throw new Error(`群聊 ${this.getName()}(${this.getId()}) 初始化失败!`);
-    }
+        private group: GroupStruct,
+    ) { }
 
     // 转为易读方法
     public getId() { return this.group.group_id; }
@@ -46,13 +39,31 @@ export class Group {
     public getMemberCount() { return this.group.member_count; }
     public getMaxMemberCount() { return this.group.max_member_count; }
 
-    public getOwner() { return this.owner; }
-    public getAdmins() { return this.admins; }
-    public getMembers() { return this.members; }
-    public getMember(id: number) { return this.members.find((member) => member.getId() == id); }
+    public async getOwner() {
+        if (!this.owner) await this.refresh();
+        return this.owner;
+    }
+    public async getAdmins() {
+        if (this.admins.length <= 0) await this.refresh();
+        return this.admins;
+    }
+    public async getMembers() {
+        if (this.members.length <= 0) await this.refresh();
+        return this.members;
+    }
+    public async getMember(id: number) {
+        return (await this.getMembers()).find((member) => member.getId() == id);
+    }
+
+    public deleteMember(id: number) {
+        let index = this.members.findIndex((member) => member.getId() == id);
+        if (index >= 0) this.members.splice(index, 1);
+        let adminIndex = this.admins.findIndex((member) => member.getId() == id);
+        if (adminIndex >= 0) this.admins.splice(adminIndex, 1);
+    }
 
     public async refresh() {
-        this.members = (await BotAPI.getGroupMembers(this.bot, this.getId()));
+        this.members = (await BotAPI.getGroupMembers(this.bot, this.getId()))!;
         this.admins = this.members.filter((member) => member.getPermission() == GroupMemberPermission.ADMIN);
         let owner = this.members.find((member) => member.getPermission() == GroupMemberPermission.OWNER);
         if (owner) {

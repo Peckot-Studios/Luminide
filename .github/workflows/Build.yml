@@ -1,8 +1,5 @@
-name: "build-repo"
+name: Build
 on: # rebuild any PRs and main branch changes
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
   push:
     branches:
@@ -10,32 +7,34 @@ on: # rebuild any PRs and main branch changes
 
 jobs:
   build: # make sure build/ci work properly
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 1
           # submodules: 'true'
-      - name: Install Requirements
+      - name: 安装程序依赖
         run: |
           npm i
           npm install typescript
-      - name: Build Luminide
+      - name: 构建主程序
         run: |
           mkdir Luminide
           tsc --outDir ./Luminide/ -watch false
-      - name: Copy Files
+      - name: 复制附属文件
         run: |
           cp package.json ./Luminide/
-      - name: Build Linux Startup Files
+          cp config.json ./Luminide/
+      - name: 构建 Linux 启动文件
         run: |
           mkdir build
           cd build
           cmake ../LuminideStart/
           make -j 4
-      - name: Copy Linux Startup Files
+          cd ..
+      - name: 复制 Linux 启动文件
         run: cp ./build/LuminideStart ./Luminide/
-      - name: Upload Luminide
+      - name: 上传工件
         uses: actions/upload-artifact@v3.1.0
         with:
           name: Luminide

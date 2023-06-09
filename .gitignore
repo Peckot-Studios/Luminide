@@ -1,6 +1,7 @@
 .gitee
 .vscode
 build
+test
 node_modules
 plugins/*
 config
