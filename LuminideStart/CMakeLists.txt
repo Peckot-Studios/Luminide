@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.0)
 project(LuminideStart)
 
 if(WIN32)
-    set(ICON_FILE "/icon.ico")
+    set(ICON_FILE "icon.ico")
     set(EXECUTABLE_NAME "LuminideStart")
 
     configure_file("${ICON_FILE}" "${CMAKE_BINARY_DIR}/${EXECUTABLE_NAME}.ico" COPYONLY)
