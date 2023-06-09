@@ -6,8 +6,8 @@ on: # rebuild any PRs and main branch changes
       - main
 
 jobs:
-  Build: # make sure build/ci work properly
-    runs-on: ubuntu-latest
+  build: # make sure build/ci work properly
+    runs-on: windows-latest
     steps:
       - name: 签出仓库
         uses: actions/checkout@v3
@@ -26,13 +26,8 @@ jobs:
         run: |
           cp package.json ./Luminide/
           cp config.json ./Luminide/
-      - name: 构建启动文件
+      - name: 构建启动文件（Linux）
         run: |
-          mkdir build-linux
-          cd build-linux
-          cmake ../LuminideStart/Linux/
-          make -j 4
-          cd ..
           mkdir build-windows
           cd build-windows
           cmake ../LuminideStart/Windows/
@@ -40,7 +35,6 @@ jobs:
           cd ..
       - name: 复制启动文件
         run: |
-          cp ./build/LuminideStart ./Luminide/
           cp ./build/LuminideStart.exe ./Luminide/
       - name: 上传工件
         uses: actions/upload-artifact@v3.1.0
