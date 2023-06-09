@@ -26,7 +26,7 @@ jobs:
         run: |
           cp package.json ./Luminide/
           cp config.json ./Luminide/
-      - name: 构建启动文件（Linux）
+      - name: 构建启动文件（Windows）
         run: |
           mkdir build-windows
           cd build-windows
