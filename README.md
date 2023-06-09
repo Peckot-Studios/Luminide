@@ -1,6 +1,7 @@
 # Luminide
 
-OneBot标准的TMBot插件加载框架（WebsocketClient） 推荐使用go-cqhttp配合使用
+一个基于 OneBot 标准的 WebSocket Client 插件加载框架  
+推荐与 go-cqhttp 配合使用
 
 <!-- PROJECT SHIELDS -->
 
@@ -14,44 +15,31 @@ OneBot标准的TMBot插件加载框架（WebsocketClient） 推荐使用go-cqhtt
 <br/>
 
 <p align="center">
-  <a href="https://github.com/TMBotDev/TMBot">
-    <img src="logo.png" alt="Logo" width="378" height="400">
+  <a href="https://github.com/Peckot-Studios/Luminide">
+    <img src="logo.png" alt="Logo" width="500" height="500">
   </a>
 
-  <h3 align="center">OneBot标准的TMBot插件加载框架</h3>
+  <h3 align="center">一个基于 OneBot 标准的 WebSocket Client 插件加载框架</h3>
   <p align="center">
-    使用它去创造你的第一个机器人插件！
+    代码跑起来我们再聊！
     <br />
 </a>
     <br />
     <br />
-    <a href="https://github.com/TMBotDev/TMBot">查看仓库</a>
+    <a href="https://github.com/Peckot-Studios/Luminide">查看仓库</a>
     ·
-    <a href="https://github.com/TMBotDev/TMBot">报告Bug</a>
+    <a href="https://github.com/Peckot-Studios/Luminide/issues">上报漏洞</a>
     ·
-    <a href="https://github.com/TMBotDev/TMBot">提出新特性</a>
+    <a href="https://github.com/Peckot-Studios/Luminide/issues">功能建议</a>
   </p>
 
 </p>
 
 ## 目录
 
-- [快速上手指南](#快速上手指南)
-  - [配置文件注释](#配置文件注释)
-  - [插件开发指南](#插件开发指南)
-  - [用户安装指南](#用户安装指南)
-- [文件目录说明](#文件目录说明)
-- [使用到的框架](#使用到的框架)
-- [贡献者](#贡献者)
-  - [如何参与此项目](#如何参与此项目)
-- [开发注意事项](#开发注意事项)
-  - [一些额外注意事项](#一些额外注意事项)
-- [版本控制](#版本控制)
-- [作者](#作者)
-- [版权说明](版权说明)
-- [鸣谢](#鸣谢)
+TODO: 待编辑……
 
-### 快速上手指南
+### 快速上手指南(已过期)
 
 1. 前往Releases页面下载最新的TMBot正式版
 2. 安装go-cqhttp或其他OneBot标准的机器人后端,设置为正向ws连接(go-cqhttp链接：<https://github.com/Mrs4s/go-cqhttp>)
@@ -66,24 +54,30 @@ OneBot标准的TMBot插件加载框架（WebsocketClient） 推荐使用go-cqhtt
 
 ```json
 {
-    "RoBot": {  //机器人名字
-        "Websocket": "ws://127.0.0.1:22",      //你的ws地址和端口
-        "ReConnectCount": 5,                   //重连次数，-1为不限
-        "ReConnectTime": 4,                    //重连间隔时间，单位为秒
-        "MsgLog": true,                        //消息日志是否启用
-        "NoticeLog": true,                     //通知日志是否启用
-        "LogFile": "RoBotLog-{Y}-{M}-{D}.log"  //日志文件名格式，Y为年，M为月，D为日
+  "LuminideBot": {						// 机器人名称
+    "debug": false,						// 调试模式
+    "websocket": {
+      "address": "ws://localhost:5555",	// WebSocket地址
+      "reconnect": 5,					// 重连次数
+      "reconnect_time": 4				// 重连间隔
+    },
+    "log": {							// 日志配置
+      "file": "luminide-{Y}{M}{D}.log",	// 日志文件
+      "message": true,					// 是否记录消息
+      "notice": true					// 是否记录通知
     }
+  }
 }
-
 ```
 
 #### 插件开发指南
 
-1. 安装node.js(Linux上还要安装npm)
-2. 克隆仓库或前往Releases下载TMBot框架
-3. 运行一次TMBotStart，安装所需依赖
-4. 下载go-cqhttp或其他OntBot协议的机器人作为后端(go-cqhttp链接：<https://github.com/Mrs4s/go-cqhttp>)
+1. 安装 Node.js ( Linux 上还要安装 npm )
+2. 克隆仓库或前往 Releases 下载 Luminide 框架
+3. 运行一次 `LuminideStart`，安装所需依赖
+4. 下载 go-cqhttp 或其他 OntBot 协议的机器人作为后端  
+( go-cqhttp 链接：<https://github.com/Mrs4s/go-cqhttp>)  
+# Forker：以下内容已过期，待开发者更新
 5. 下载插件模板：<https://github.com/TMBotDev/TMBot-Plugin-Demo.git>
 6. 将插件安装进TMBot中
 7. 运行TMBotStart，开始你的开发之旅
