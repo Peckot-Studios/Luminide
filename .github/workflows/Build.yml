@@ -25,15 +25,18 @@ jobs:
         run: |
           cp package.json ./Luminide/
           cp config.json ./Luminide/
-      - name: 构建 Linux 启动文件
+      - name: 构建启动文件
         run: |
           mkdir build
           cd build
           cmake ../LuminideStart/
+          cmake --build .
           make -j 4
           cd ..
-      - name: 复制 Linux 启动文件
-        run: cp ./build/LuminideStart ./Luminide/
+      - name: 复制启动文件
+        run: |
+          cp ./build/LuminideStart ./Luminide/
+          cp ./build/LuminideStart.exe ./Luminide/
       - name: 上传工件
         uses: actions/upload-artifact@v3.1.0
         with:
