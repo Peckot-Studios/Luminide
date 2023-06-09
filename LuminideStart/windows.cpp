@@ -18,7 +18,7 @@ int main()
         cout << "是否已安装 Node.js？" << endl;
         cout << "1.我已安装 Node.js，立即下载依赖" << endl;
         cout << "2.我还未安装 Node.js，立即跳转下载" << endl;
-        cout << "输入数字进行选择：" << endl;
+        cout << "输入数字进行选择：";
 
         char c = _getch();
         int choice = c - '0';

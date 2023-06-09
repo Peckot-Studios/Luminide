@@ -15,7 +15,7 @@ int main()
         cout << "是否已安装 Node.js？" << endl;
         cout << "1.我已安装 Node.js，立即下载依赖" << endl;
         cout << "2.我还未安装 Node.js，立即自动安装" << endl;
-        cout << "输入数字进行选择：" << endl;
+        cout << "输入数字进行选择：";
 
         char c;
         cin >> c;
