@@ -1,7 +1,6 @@
-import { Bot, BotAPI } from "../../hooks/Bot";
+import { Bot } from "../../hooks/Bot";
 import { GroupMemberPermission } from "../group/GroupMemberPermission";
 import { Sex } from "../misc/Sex";
-import { Stranger } from "./Stranger";
 
 /**
  * 发送者结构
@@ -22,14 +21,12 @@ export type SenderStruct = {
 /**
  * 发送者
  */
-export class Sender extends Stranger {
+export class Sender {
 
     constructor(
-        bot: Bot,
+        private bot: Bot,
         private sender: SenderStruct
-    ) {
-        super(bot, BotAPI.getStrangerStructSync(bot, sender.user_id)!);
-    }
+    ) { }
 
     public getId() { return this.sender.user_id; }
     public getNickname() { return this.sender.nickname; }
