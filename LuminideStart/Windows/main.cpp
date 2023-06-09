@@ -6,6 +6,8 @@ using namespace std;
 
 int main()
 {
+    SetConsoleOutputCP(CP_UTF8);
+
     if (GetFileAttributesA("node_modules") == INVALID_FILE_ATTRIBUTES)
     {
         string choice = "y";
@@ -29,6 +31,10 @@ int main()
         cout << "正在启动Luminide…" << endl;
         system("node App.js");
     }
+
+    cout << "按任意键继续...";
+    cin.ignore();
+    cin.get();
 
     return 0;
 }

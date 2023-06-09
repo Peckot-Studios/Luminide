@@ -1,9 +1,12 @@
 #include <unistd.h>
 #include <iostream>
+#include <locale>
 using namespace std;
 
 int main()
 {
+    setlocale(LC_ALL, "");
+
     if (access("node_modules", F_OK) != 0)
     {
         string choice = "y";
@@ -19,7 +22,7 @@ int main()
         {
             cout << "正在安装…" << endl;
             system("npm i");
-        };
+        }
     }
     else
     {
@@ -27,6 +30,11 @@ int main()
         cout << "正在启动Luminide…" << endl;
         system("node App.js");
     }
+
+    cout << "按任意键继续...";
+    cin.ignore();
+    cin.get();
+
 
     return 0;
 }
