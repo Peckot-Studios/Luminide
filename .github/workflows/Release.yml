@@ -9,7 +9,8 @@ jobs:
   build: # make sure build/ci work properly
     runs-on: ubuntu-lastest
     steps:
-      - uses: actions/checkout@v3
+      - name: 签出仓库
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: 安装程序依赖
