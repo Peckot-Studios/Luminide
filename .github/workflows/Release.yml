@@ -59,7 +59,7 @@ jobs:
         with:
           body_path: ${{ github.workspace }}/.github/Release-Description.md
           tag_name: v${{ steps.version.outputs.prop }}
-          token: ${{ secrets.RELEASE_TOKEN }}
+          token: ${{ secrets.AUTO_RELEASE_TOKEN }}
           files: |
             ./Luminide/Luminide-Release.zip
         env:
