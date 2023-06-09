@@ -30,7 +30,7 @@ jobs:
         run: |
           mkdir build-windows
           cd build-windows
-          cmake ../LuminideStart/Windows/
+          cmake ../LuminideStart/
           cmake --build . --config Release
           cd ..
       - name: 复制启动文件
