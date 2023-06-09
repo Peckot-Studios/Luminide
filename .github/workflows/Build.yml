@@ -35,7 +35,7 @@ jobs:
           cd ..
       - name: 复制启动文件
         run: |
-          cp ./build/Release/LuminideStart.exe ./Luminide/
+          cp ./build-windows/Release/LuminideStart.exe ./Luminide/
       - name: 上传工件
         uses: actions/upload-artifact@v3.1.0
         with:
