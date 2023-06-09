@@ -40,104 +40,94 @@
 
 TODO: 待编辑……
 
-### 快速上手指南(已过期)
+## 快速上手
 
-1. 前往Releases页面下载最新的TMBot正式版
-2. 安装go-cqhttp或其他OneBot标准的机器人后端,设置为正向ws连接(go-cqhttp链接：<https://github.com/Mrs4s/go-cqhttp>)
-3. 启动TMBotStart.exe(Linux使用./TMBotStart)安装所需依赖
-4. 重复3. ，在./config/文件夹找到config.json,更改ws地址，端口和你想改的东西
-5. 修改配置文件后，启动机器人
-6. Enjoy it ;)
+1. 前往 [Releases](/releases) 页面下载最新正式版本的 Luminide 客户端；
+2. 安装 [go-cqhttp](https://github.com/Mrs4s/go-cqhttp) 或其他 [OneBot](https://onebot.dev/) 标准的机器人后端，设置为正向 WebSocket 连接；
+3. 启动 `LuminideStart.exe` (Linux使用 `./LuminideStart` ) 安装相关依赖文件；
+4. 修改 `config.json` ，更改 WebSocket 地址、端口和其他内容；
+5. 再次启动 Luminide 客户端！
+6. Enjoy it <3
 
-***更多内容请参阅[插件开发指南](#插件开发指南)和[用户安装指南](#用户安装指南)***
+***更多内容请参阅 [用户安装指南](#用户安装指南) 和 [插件开发指南](#插件开发指南)***
 
-#### 配置文件注释
+## 详细介绍
+
+### 配置文件说明
+
+> 注：暂未支持多机器人对接
 
 ```json
 {
-  "LuminideBot": {						// 机器人名称
-    "debug": false,						// 调试模式
+  "LuminideBot": {                      // 机器人名称
+    "debug": false,                     // 调试模式
     "websocket": {
-      "address": "ws://localhost:5555",	// WebSocket地址
-      "reconnect": 5,					// 重连次数
-      "reconnect_time": 4				// 重连间隔
+      "address": "ws://localhost:5555", // WebSocket地址
+      "reconnect": 5,                   // 重连次数
+      "reconnect_time": 4               // 重连间隔
     },
-    "log": {							// 日志配置
-      "file": "luminide-{Y}{M}{D}.log",	// 日志文件
-      "message": true,					// 是否记录消息
-      "notice": true					// 是否记录通知
+    "log": {
+      "file": "luminide-{Y}{M}{D}.log", // 日志文件
+      "message": true,                  // 是否记录消息
+      "notice": true                    // 是否记录通知
     }
   }
 }
 ```
 
+### 用户安装指南
+
+1. 前往 [Releases](/releases) 下载稳定版或从 [Actions](/actions) 下载测试版（不推荐）；
+2. 安装 Node.js 等必要的框架或依赖：
+
+```sh
+# Windows 请自行前往 Node.js 官网下载安装程序
+
+# Linux/Debian
+sudo apt-get install nodejs npm             # 安装 Node.js
+chmod +x ./LuminideStart && ./LuminideStart # 设置权限并启动
+```
+
+3. 启动 Luminide：
+
+```sh
+./LuminideStart     # Linux
+LuminideStart.exe   # Windows
+```
+
 #### 插件开发指南
 
-1. 安装 Node.js ( Linux 上还要安装 npm )
-2. 克隆仓库或前往 Releases 下载 Luminide 框架
-3. 运行一次 `LuminideStart`，安装所需依赖
-4. 下载 go-cqhttp 或其他 OntBot 协议的机器人作为后端  
-( go-cqhttp 链接：<https://github.com/Mrs4s/go-cqhttp>)  
-# Forker：以下内容已过期，待开发者更新
-5. 下载插件模板：<https://github.com/TMBotDev/TMBot-Plugin-Demo.git>
-6. 将插件安装进TMBot中
-7. 运行TMBotStart，开始你的开发之旅
-
-#### **用户安装指南**
-
-1. 前往Releases 下载稳定版（推荐）或从Actions下载测试版（不推荐）
-
-2. 安装必要的框架和依赖
-
-```sh
-sudo apt-get install nodejs npm #  Linux Debian系可以这样安装
-# Windows用户请自行前往Node.JS官网安装
-# 下载后解压到一个文件夹
-# Windows 用户双击TMBotStart.exe即可安装依赖
-# Linux 用户在此处打开终端，输入：
-chmod +x ./TMBotStart && ./TMBotStart
-```
-
-3. 启动TMBot
-
-```sh
-./TMBotStart # Linux
-TMBotStart.exe # Windows
-```
+1. 安装 Node.js ( Linux 上还要安装 npm )；
+2. 克隆仓库或前往 Releases 下载 Luminide 框架；
+3. 运行一次 `LuminideStart`，安装所需依赖；
+4. 下载 [go-cqhttp](https://github.com/Mrs4s/go-cqhttp) 或其他 [OntBot](https://onebot.dev/) 协议的机器人作为后端；
+5. 下载 [Luminide-Tutorial](https://github.com/Peckot-Studios/Luminide-Tutorial) 插件开发模板或自行开发；
+6. 将插件放在 `./plugins/` 目录下；  
+*(注意文件夹名需要和插件项目 `package.json` 中的 `name` 一致)*
+7. 运行 `LuminideStart`，开始你的开发之旅！
 
 ### 文件目录说明
 
-```
-FileTree:  
-├── /config/     // TMBot总配置目录(您只应该去更改里面的config.json)
-├── node_modules // TMBot所需的依赖
-├── modules      // TMBot框架模块
-└── /tools/      // TMBot用到的小工具
-├── /plugins/    // TMBot插件加载目录(在这里创建插件)
-    ├── /Data/   // TMBot插件数据目录 
-    ├── xxx      // 插件数据(最好每个创建都独立在Data目录创建一个文件夹，不要随意乱放)
-├── app.js       // TMBot的入口文件，正常情况下不应该修改
-├── CONTRIBUTING.md // TMBot的贡献者名单（Clone Only）
-├── LICENSE.txt  // 这个项目的许可证 （Clone Only）
-├── logo.png     // RT.
-├── package.json // （Clone Only）
-├── README.md    // 您正在阅读的这个文件（Clone Only）
-├── TMBotStart.exe // Windows 启动文件
-├── TMBotStart   // Linux 启动文件
-
+```c
+FileTree：
+├── /logs           // Luminide 日志目录
+├── /node_modules   // Node.js 的依赖文件夹
+├── /plugins        // Luminide 插件目录
+│   ├── xx          // 插件
+│   └── xx
+├── /src            // Luminide 程序目录（勿编辑）
+├── LICENSE         // Luminide 项目许可证
+├── Luminide.png    // Luminide 图标
+├── Luminide.exe    // Windows 启动文件
+├── Luminide        // Linux 启动文件
+├── package.json    // Luminide 包管理文件
+└── README.md       // 您正在阅读的这个文件
 ```
 
-### 使用到的框架
+## 如何参与此项目？
 
-暂无
-
-### 贡献者
-
-请阅读**CONTRIBUTING.md** 查阅为该项目做出贡献的开发者。
-
-#### 如何参与此项目
-
-贡献使开源社区成为一个学习、激励和创造的绝佳场所。你所作的任何贡献都是**让我们非常感谢**的。
+贡献使开源社区成为一个学习、激励和创造的绝佳场所。  
+您所作的任何贡献都是**让我们非常感谢**的。
 
 1. Fork 这个项目
 2. 创建你的"Feature Branch",例如 (```git checkout -b feature/AmazingFeature```)
@@ -145,22 +135,7 @@ FileTree:
 4. 将更改推到你的分支上 (```git push origin feature/AmazingFeature```)
 5. 开始PR
 
-### 开发注意事项
-
-此框架可以运行于LiteLoaderBDS与NodeJS上
-**但是请要注意，如果在`NodeJS环境上运行`，那么根目录是直接作用于`项目目录的`**
-
-**而在`LiteLoaderBDS`上，根目录是作用于`BDS根目录`上的**
-
-**所以可以使用**
-
-```js
-FileClass.getStandardPath(<相对目录>)
-```
-
-**来获取作用于项目路径的绝对路径来避免此类BUG出现**
-
-*```TIPS: TMBot的基础接口实现已经全部使用了上述方法，所以可以直接传入作用于项目的相对路径```*
+# Forker：以下内容正等待更新……
 
 #### 一些额外注意事项
 
@@ -205,17 +180,16 @@ tmp.Client.events.onDestroy.on(()=>{
 
 该项目使用Git进行版本管理。您可以在GitHub查看当前可用版本。
 
-### 作者
+### 分支作者
 
-Timiya
-
-MineBBS:提米吖  &ensp; qq:284696890
+Pectics
+QQ: 2671876934
 
  *您也可以在贡献者名单中参看所有参与该项目的开发者。*
 
 ### 版权说明
 
-该项目使用 GPL-V3 授权许可，详情请参阅 [LICENSE](https://github.com/TMBotDev/TMBot/blob/master/LICENSE)
+该项目使用 GPL-3.0 授权许可，详情请参阅 [LICENSE](https://github.com/TMBotDev/TMBot/blob/master/LICENSE)
 
 ### 鸣谢
 
