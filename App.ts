@@ -14,7 +14,7 @@ let logo = String.raw`
 let logger = new Logger("Luminide");
 
 export let version = {
-    code: [1, 0, 2],
+    code: [1, 1, 0],
     alhpa: true,
     beta: false
 };

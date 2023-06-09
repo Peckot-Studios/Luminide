@@ -1,19 +1,18 @@
 name: Build
-on: # rebuild any PRs and main branch changes
+on:
   workflow_dispatch:
   push:
     branches:
       - main
 
 jobs:
-  build: # make sure build/ci work properly
-    runs-on: windows-latest
+  build:
+    runs-on: ubuntu-latest
     steps:
       - name: 签出仓库
         uses: actions/checkout@v3
         with:
           fetch-depth: 1
-          # submodules: 'true'
       - name: 安装程序依赖
         run: |
           npm i
@@ -26,16 +25,25 @@ jobs:
         run: |
           cp package.json ./Luminide/
           cp config.json ./Luminide/
-      - name: 构建启动文件（Windows）
+      - name: 构建启动程序（Linux）
         run: |
-          mkdir build-windows
-          cd build-windows
+          mkdir build-linux
+          cd build-linux
           cmake ../LuminideStart/
-          cmake --build . --config Release
+          make -j 4
           cd ..
-      - name: 复制启动文件
+      # - name: 构建启动程序（Windows）
+      #   run: |
+      #     mkdir build-windows
+      #     cd build-windows
+      #     cmake --build . --config Release
+      #     make -j 4
+      #     cd ..
+      - name: 复制启动程序
         run: |
-          cp ./build-windows/Release/LuminideStart.exe ./Luminide/
+          cp ./build-linux/LuminideStart ./Luminide/
+          cp ./LuminideStart.exe ./Luminide/
+      #     cp ./build-windows/Release/LuminideStart.exe ./Luminide/
       - name: 上传工件
         uses: actions/upload-artifact@v3.1.0
         with:

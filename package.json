@@ -1,6 +1,6 @@
 {
   "name": "luminide",
-  "version": "1.0.2r",
+  "version": "1.1.0",
   "description": "Luminide",
   "main": "./App.js",
   "scripts": {
