@@ -10,8 +10,7 @@ int main()
 
     if (system("test -d node_modules") != 0)
     {
-        cout << "运行失败！未检测到依赖文件！" << endl;
-        cout << endl;
+        cout << "运行失败！未检测到依赖文件！" << endl << endl;
         cout << "是否已安装 Node.js？" << endl;
         cout << "1.我已安装 Node.js，立即下载依赖" << endl;
         cout << "2.我还未安装 Node.js，立即自动安装" << endl;
@@ -21,6 +20,7 @@ int main()
         cin >> c;
         int choice = c - '0';
 
+        cout << endl << endl;
         if (choice == 2)
         {
             cout << "正在自动安装 Node.js……" << endl;

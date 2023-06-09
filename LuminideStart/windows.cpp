@@ -13,8 +13,7 @@ int main()
 
     if (GetFileAttributesA("node_modules") == INVALID_FILE_ATTRIBUTES)
     {
-        cout << "运行失败！未检测到依赖文件！" << endl;
-        cout << endl;
+        cout << "运行失败！未检测到依赖文件！" << endl << endl;
         cout << "是否已安装 Node.js？" << endl;
         cout << "1.我已安装 Node.js，立即下载依赖" << endl;
         cout << "2.我还未安装 Node.js，立即跳转下载" << endl;
@@ -23,6 +22,7 @@ int main()
         char c = _getch();
         int choice = c - '0';
 
+        cout << endl << endl;
         if (choice == 2)
         {
             cout << "正在为您打开下载页面……" << endl;
